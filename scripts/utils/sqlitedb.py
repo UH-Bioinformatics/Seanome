@@ -34,7 +34,7 @@ def buildSingleDB(dbname):
     return con
 
 
-def buildMultieDb(dbname)
+def buildMultieDb(dbname):
     con = sqlite3.connect(dbname)
     con.execute("""PRAGMA foreign_keys = ON;""")
 

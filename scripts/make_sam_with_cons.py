@@ -10,7 +10,7 @@ from Bio.Seq import Seq
 import pysam 
 from collections import Counter
 
-from utils.ucparser import uclustUserParser
+from utils.ucparse import uclustUserParser
 from utils.cigar import cleanupCigar
 from utils.samformater import makeSAMHdr, generateReadGroups
 from utils.sqlitedb import buildsqlitedb
