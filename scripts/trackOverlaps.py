@@ -4,40 +4,8 @@ import sys
 from collections import defaultdict
 from Bio import SeqIO
 import argparse
-#from itertolls import izip_longest
 
-FINDALL_CMP=re.compile(r'([0-9]*)([MID=])')
-# I='D' or I='N'
-CIGMAP = dict(M='M', D='I', I='D')
-
-def expandCigar(cig):
-    parts = FINDALL_CMP.findall(cig)
-    # fix the RLE so that everything has both elements                                          
-    cig = ""
-    for p in parts:
-        if p[0]:
-            cig += p[1]*int(p[0])
-        else:
-            cig += p[1]
-    return cig
-
-
-def compressCigar(cigar):
-    cigar = cigar.rstrip("D")
-    c = None
-    cnt = 0
-    ciglst = []
-    for b in cigar:
-        if b != c:
-            if c!= None:
-                ciglst.append("%s%s"%(cnt, c))
-            cnt = 1
-            c = b
-        else:
-            cnt += 1
-    if c!= None:
-        ciglst.append("%s%s"%(cnt, c))
-    return "".join(ciglst)
+from utils.cigar import expandCigar, compressCigar
 
 
 def modifyCig(cig):
@@ -61,7 +29,6 @@ def modifyCig(cig):
     cig = cig[::-1]
     #print "".join(cig)
     return "".join(cig)    
-
 
 
 def updateCigar(child, childstrand, newcentroid, centroidstrand, iterNum, newCigar, seqConsCigar, outputfile, singlestr = ""):
@@ -115,29 +82,27 @@ def updateCigar(child, childstrand, newcentroid, centroidstrand, iterNum, newCig
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i1', '--input1',  required = True, help = "output of muso 1" )
-    parser.add_argument('-i2', '--input2',  required = True, help = "output of muso 2" )
+    parser.add_argument('-i1', '--input1',  required = True, help = "output of muso _1" )
+    parser.add_argument('-i2', '--input2',  required = True, help = "output of muso _2" )
     parser.add_argument('-o', '--output',  required = True, help = "output file")
     args = parser.parse_args()
+    seqConsCigar = {}
 
-
-seqConsCigar = {}
-
-iterNum = 0
-fileName = args.input1
-seqConsCigar[iterNum] = defaultdict(list)
-for line in open(fileName, 'r'):
-    # each line is:: s1     s2     cigar       strand_s1       strand_s2
-    data = line.strip().split()
-    seqConsCigar[iterNum][data[1]].append([data[0], expandCigar(data[2]), data[3], data[4]])
-
-iterNum = 1
-fileName = args.input2
-
-with open(args.output, "w") as o:
+    iterNum = 0
+    fileName = args.input1
     seqConsCigar[iterNum] = defaultdict(list)
     for line in open(fileName, 'r'):
         # each line is:: s1     s2     cigar       strand_s1       strand_s2
         data = line.strip().split()
-        if seqConsCigar[iterNum-1].has_key(data[0]): # we are intersted in the sequence that hit against the new centroid
-            updateCigar(data[0], data[3], data[1], data[4],   iterNum-1, expandCigar(data[2]), seqConsCigar, o)         
+        seqConsCigar[iterNum][data[1]].append([data[0], expandCigar(data[2]), data[3], data[4]])
+
+    iterNum = 1
+    fileName = args.input2
+
+    with open(args.output, "w") as o:
+        seqConsCigar[iterNum] = defaultdict(list)
+        for line in open(fileName, 'r'):
+            # each line is:: s1     s2     cigar       strand_s1       strand_s2
+            data = line.strip().split()
+            if seqConsCigar[iterNum-1].has_key(data[0]): # we are intersted in the sequence that hit against the new centroid
+                updateCigar(data[0], data[3], data[1], data[4],   iterNum-1, expandCigar(data[2]), seqConsCigar, o)         

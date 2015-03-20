@@ -9,43 +9,24 @@ from collections import Counter, defaultdict
 import pysam
 import sqlite3
 import cStringIO as StringIO
-from multiprocessing import Pool
+
+from utils.threadpool import ProducerConsumer
+from utils.utils import removeFiles
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Fills in missing data not caught by platypus')
-    parser.add_argument('-t', '--threads', type = int, default = 1, help = "Number of processing threads. (default: 1)" )
-    parser.add_argument('-d', '--database', help='Specified Seanome Database', required = True)
-
-    args = parser.parse_args()
-
-    pool = Pool(processes = args.threads)
-
-
-    con = sqlite3.connect(args.database, check_same_thread=False)
-    con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_modvcf(id INTEGER PRIMARY KEY, fileID INTEGER, vcf TEXT, json TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_modvcf_fileid_idx ON trimmed_modvcf(fileID ASC);""")
-    con.commit()
-    
+def consumer(con, returndata):
     cur = con.cursor()
-    cur.execute("""SELECT A.fileID, A.vcf, B.bam, B.bamidx FROM trimmed_vcf as A JOIN trimmed_inferSAM AS B ON (A.fileID = B.fileID); """)
-    rows = ( (r[0], r[1], bytearray(r[2]), bytearray(r[3]), ) for r in cur )
-
-    ret = pool.imap_unordered(processor, rows)
-    cur2 = con.cursor()
-    for dat in ret:
+    for dat in returndata:
         if not dat:
             continue
         fileidx = dat[0]
         modvcf = dat[1]
         jsonstr = dat[2]
-        cur2.execute("""INSERT INTO trimmed_modvcf(fileID, vcf, json) VALUES (?,?,?)""", (fileidx, modvcf, jsonstr,) )
+        cur.execute("""INSERT INTO trimmed_modvcf(fileID, vcf, json) VALUES (?,?,?)""", (fileidx, modvcf, jsonstr,) )
     con.commit()
-    con.close()
 
 
-def processor(info):
+def producer(info):
     fileid = str(info[0])
     vcfInput = vcf.Reader(StringIO.StringIO(info[1]))
     line = None
@@ -63,6 +44,7 @@ def processor(info):
     with open(bamidxfile, "wb") as o:
         o.write(info[3])
 
+
     vcfInput = vcf.Reader(StringIO.StringIO(info[1]))
     vcfohndl = StringIO.StringIO()
     vcfOutput = vcf.Writer(vcfohndl, vcfInput)
@@ -75,14 +57,9 @@ def processor(info):
     vcfohndl.flush()
     modvcf = vcfohndl.getvalue()
     vcfohndl.close()
-    try:
-        os.remove(bamfile)
-    except:
-        pass
-    try:
-        os.remove(bamidxfile)
-    except:
-        pass
+
+    removeFiles([bamfile, bamidxfile])
+
     return info[0], modvcf, jsonstr
     
 
@@ -124,4 +101,21 @@ def computeData(inputvcf, outputvcf, samf, shift):
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Fills in missing data not caught by platypus')
+    parser.add_argument('-t', '--threads', type = int, default = 1, help = "Number of processing threads. (default: 1)" )
+    parser.add_argument('-d', '--database', help='Specified Seanome Database', required = True)
+    args = parser.parse_args()
+    con = sqlite3.connect(args.database, check_same_thread=False)
+    con.execute("""PRAGMA foreign_keys = ON;""")
+    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_modvcf(id INTEGER PRIMARY KEY, fileID INTEGER, vcf TEXT, json TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
+    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_modvcf_fileid_idx ON trimmed_modvcf(fileID ASC);""")
+    con.commit()
+    
+    cur = con.cursor()
+    cur.execute("""SELECT A.fileID, A.vcf, B.bam, B.bamidx FROM trimmed_vcf as A JOIN trimmed_inferSAM AS B ON (A.fileID = B.fileID); """)
+    rows = ( (r[0], r[1], bytearray(r[2]), bytearray(r[3]), ) for r in cur )
+
+    worker = ProducerConsumer(args, args.threads, producer, consumer)
+    worker.run(con, rows)
+    con.commit()
+    con.close()

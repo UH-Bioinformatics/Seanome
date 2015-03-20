@@ -3,7 +3,6 @@ import argparse
 import sys
 import subprocess
 import itertools
-from multiprocessing import Pool
 
 from Bio import SeqIO
 from Bio import AlignIO
@@ -15,7 +14,8 @@ from Bio.Align.Applications import MuscleCommandline
 
 import cStringIO as StringIO
 
-# TODO: validate the presence of a GATC site when combining (assembling) reads
+from utils.threadpool import ProducerConsumer
+from utils.cigar import compressCigar
 
 
 def msablocks(fastaFile):
@@ -34,29 +34,7 @@ def msablocks(fastaFile):
         yield accumulator
 
 
-def compressCigar(cigar):
-    """
-    We build the cigar as a string of I,M, and D.  We need to do a RLE on this
-    to compact it.
-    """
-    cigar = cigar.rstrip("D")
-    c = None
-    cnt = 0
-    ciglst = []
-    for b in cigar:
-        if b != c:
-            if c!= None:
-                ciglst.append("%s%s"%(cnt, c))
-            cnt = 1
-            c = b
-        else:
-            cnt += 1
-    if c!= None:
-        ciglst.append("%s%s"%(cnt, c))
-    return "".join(ciglst)
-
-
-def muscleprocess(info):
+def producer(info):
     """
     A thread pool worker function.  
     - It will run muscle using stdin and stdout (no intermediate files required!
@@ -70,7 +48,6 @@ def muscleprocess(info):
     tag = info[2]
     maxhrs = info[3]
     largesize = info[4]
-
     newcigs = {}
     cline = ""
 
@@ -115,6 +92,17 @@ def muscleprocess(info):
     return newCon, newcigs
 
 
+def consumer(args, returndata):
+    newcigs = {}
+    with open(args.output1, 'w') as o:
+        for r in returndata:
+            if not r:
+                continue
+            SeqIO.write([r[0]], o, "fasta")
+            newcigs.update(r[1])
+    modCigars(newcigs, args.input2, args.output2)
+
+
 def modCigars(newcigs, infile, outfile):
     with open(outfile, "w") as o:
         keys = set(newcigs.keys())
@@ -125,7 +113,6 @@ def modCigars(newcigs, infile, outfile):
             newcigs[l[0]].append(l[-1])
             print >> o, "\t".join(map(str,  newcigs[l[0]]))
             keys.remove(l[0])
-            #print >> o, "\t".join()
         for k in keys:
             newcigs[k].append("+")
             newcigs[k].append("+")
@@ -140,22 +127,15 @@ if __name__ == "__main__":
     parser.add_argument('-i2', '--input2',  required = True, help = "userout from vsearch/usearch")
     parser.add_argument('-o2', '--output2', required = True, help = "modified userout")
     parser.add_argument('-g', '--tag', required = True, help = "what to tag consensus ID with")
-    parser.add_argument('-m', '--maxhours', required = False, type = float, default = 0.0, help = "The maximum time to let an instance of muscle run (default: unlimited)")
-    parser.add_argument('-n', '--largecluster', required = False, type = int, default = 0, help = "The size of a cluster that we consider too large, and will cause musle to use less sensitive parameters (default: infinite)")
+    parser.add_argument('-m', '--maxhours', required = False, type = float, default = 0.0, 
+                        help = "The maximum time to let an instance of muscle run (default: unlimited)")
+    parser.add_argument('-n', '--largecluster', required = False, type = int, default = 0, 
+                        help = "The size of a cluster that we consider too large, and will cause musle to use less sensitive parameters (default: infinite)")
     parser.add_argument("-d", "--dropAmbiguous", action = "store_true", required = False, help = "Drop clusters in which the consensus does not  contain GATC")
 
     args = parser.parse_args()
 
-    pool = Pool(processes = args.threads)
-
-    #one line.. producer/consumers.. yum
-    ret = pool.imap_unordered( muscleprocess, itertools.izip( msablocks(args.input1), itertools.repeat(args.dropAmbiguous), itertools.repeat(str(args.tag)), itertools.repeat(args.maxhours) , itertools.repeat(args.largecluster)  ,) )
-    newcigs = {} 
-    with open(args.output1, 'w') as o:
-        for r in ret:
-            if not r:
-                continue            
-            SeqIO.write([r[0]], o, "fasta")  
-            newcigs.update(r[1])
-    pool.close()
-    modCigars(newcigs, args.input2, args.output2)
+    worker = ProducerConsumer(args, args.threads, producer, consumer)
+    worker.run( args, 
+                itertools.izip( msablocks(args.input1), itertools.repeat(args.dropAmbiguous), 
+                                itertools.repeat(str(args.tag)), itertools.repeat(args.maxhours) , itertools.repeat(args.largecluster)  ,))

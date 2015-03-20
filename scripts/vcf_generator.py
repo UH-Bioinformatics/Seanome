@@ -7,8 +7,10 @@ from multiprocessing import Pool
 import sqlite3
 import cStringIO as StringIO
 
+from utils.threadpool import ProducerConsumer
+from utils.utils import removeFiles
 
-def process(info):
+def producer(info):
     fileidx = str(info[0])
 
     inputdata = "%s.con.fasta"%(fileidx)
@@ -38,15 +40,18 @@ def process(info):
                              shell=(sys.platform!="win32"),
                              close_fds = True)
     dat, err = child.communicate()
-    try:
-        os.remove(inputdata)
-    except:
-        pass
-    try:
-        os.remove("%s.fai"%(inputdata))
-    except:
-        pass
+    removeFiles([inputdata, "%s.fai"%(inputdata)])
     return fileidx, dat
+
+
+def consumer(con, returndata):
+    curs = con.cursor()
+    for r in returndata:
+        if not r:
+            continue
+        fileid = int(r[0])
+        curs.execute("""INSERT INTO trimmed_vcf(fileID, vcf) VALUES(?, ?)""", (fileid, r[1], ) )
+    con.commit()
 
 
 if __name__ == "__main__":
@@ -55,7 +60,6 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--database',  required = True, help = "Seanome sqlite db")
 
     args = parser.parse_args()
-    pool = Pool(processes = args.threads)
 
     con = sqlite3.connect(args.database, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
@@ -69,13 +73,8 @@ if __name__ == "__main__":
                     JOIN (SELECT  D.fileID as fid, group_concat(D.groupid, '\t') as groupids FROM groups AS D GROUP BY fileID) AS C  ON (A.fileID = C.fid);""")
 
     rows = ( (r[0], r[2], bytearray(r[1]), r[3]) for r in curs )
-    ret = pool.imap_unordered( process, rows )
-    curs2 = con.cursor()
-    for r in ret:
-        if not r:
-            continue
-        fileid = int(r[0])
-        curs2.execute("""INSERT INTO trimmed_vcf(fileID, vcf) VALUES(?, ?)""", (fileid, r[1], ) )
-    pool.close()
+
+    worker = ProducerConsumer(args, args.threads, producer, consumer)
+    worker.run(con, rows)
     con.commit()
     con.close()

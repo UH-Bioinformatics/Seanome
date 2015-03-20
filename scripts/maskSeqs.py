@@ -20,7 +20,6 @@ def getLines(infile, qcov):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    #parser.add_argument('-t', '--threads', type = int, default = 1, help = "Number of processing threads. (default: 1)" )
     parser.add_argument('-i', '--id',  required = True, help = "bad ids output")
     parser.add_argument('-f', '--fasta', required = True, help = "masked contigs that make up the targets in the badids file")
     parser.add_argument('-c', '--coverage', type = float, default = 75, help = "Target Coverage threshold between drop and N mask (default 75) [0-100]" )

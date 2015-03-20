@@ -2,45 +2,18 @@
 
 from Bio import SeqIO
 import pysam 
-import sys
-import re
 import sqlite3
 import cStringIO as StringIO
 import argparse
 import os
-import sys
-import subprocess
-import itertools
-from multiprocessing import Pool
+
+from utils.utils import removeFiles
+from utils.cigar import expandCigar, compressCigar
+from utils.samToBam import samToBam
+from utils.threadpool import ProducerConsumer
 
 
-cigar_re = re.compile(r'([0-9]+)([M=XID])')
-def expandCigar( cigar):
-    cigstr = ""
-    for m in cigar_re.finditer(cigar):
-        cigstr +=  m.group(2) * int(m.group(1))
-    return cigstr
-
-
-def compressCigar(cigar):
-    cigar = cigar.rstrip("D")
-    c = None
-    cnt = 0
-    ciglst = []
-    for b in cigar:
-        if b != c:
-            if c!= None:
-                ciglst.append("%s%s"%(cnt, c))
-            cnt = 1
-            c = b
-        else:
-            cnt += 1
-    if c!= None:
-        ciglst.append("%s%s"%(cnt, c))
-    return "".join(ciglst)
-
-
-def processor(info):
+def producer(info):
     fileidx = str(info[0])   
     consensus = ">Consensus\n%s\n"%(str(info[2]))    
     seqs = [">%s\n%s"%(str(i), str(s)) for i, s in zip(info[3].split("\t"), info[4].split("\t"))]
@@ -114,56 +87,24 @@ def processor(info):
     
     samout = "%s.trim.sam"%(fileidx)
     bamout = "%s.trim.bam"%(fileidx)
-    
-    try:
-        os.remove(bamfile)
-    except:
-        pass
-    try:
-        os.remove(bamidxfile)
-    except:
-        pass
-    
     samdat = open(samout).read()
-    try:
-        os.remove(samout)
-    except:
-        pass
+    removeFiles([bamfile, bamidxfile, samout])
 
-    cline = """samtools view -bS -"""
-    child = subprocess.Popen(str(cline),
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE,
-                             shell=(sys.platform!="win32"),
-                             close_fds = True)
-    sout, serr = child.communicate(samdat)
-    
-    cline = """samtools sort - -o %s.trim"""%(fileidx)
-    child2 = subprocess.Popen(str(cline),
-                              stdin = subprocess.PIPE,
-                              stderr = subprocess.PIPE,
-                              stdout = subprocess.PIPE,
-                              shell = (sys.platform!="win32"),
-                              close_fds = True)
-    bamdat, berr = child2.communicate(sout)
-
-    with open(bamout, "wb") as o:
-        o.write(bamdat)
-
-    os.system("""samtools index %s > /dev/null 2> /dev/null"""%(bamout))
-    bamidxdat = open("%s.bai"%(bamout), "rb").read()
-    try:
-        os.remove(bamout)
-    except:
-        pass    
-    try:
-        os.remove("%s.trim.bam.bai"%(fileidx))
-    except:
-        pass    
-
+    bamdat, bamidxdat = samToBam(samdat, "%s.trim"%(fileidx), buffers = True)
     return fileidx, samdat, bamdat, bamidxdat
-    #return fileidx, samout, bamout, "%s.trim.bam.bai"%(fileidx)
+
+
+def consumer(con, returndata):
+    curs = con.cursor() 
+    for dat in returndata:
+        if not dat:
+            continue
+        sam = dat[1]
+        bam = dat[2]
+        bamidx = dat[3]
+        ident = dat[0]
+        curs.execute("""INSERT INTO trimmed_inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (ident, sam, sqlite3.Binary(bam), sqlite3.Binary(bamidx),))
+    con.commit()
 
 
 if __name__ == "__main__":
@@ -174,15 +115,13 @@ if __name__ == "__main__":
 
     pool = Pool(processes = args.threads)
 
-
     con = sqlite3.connect(args.database, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_inferSAM(id INTEGER PRIMARY KEY, fileID INTEGER, sam TEXT, bam BLOB, bamidx BLOB, FOREIGN KEY(fileID) REFERENCES files(id));""")
     con.execute("""CREATE INDEX IF NOT EXISTS trimmed_infersam_fileid_idx ON trimmed_inferSAM(fileID ASC);""")
     con.commit()
 
-    curs = con.cursor()
-    
+    curs = con.cursor()  
     curs.execute("""SELECT A.fileID, A.positions, B.sequence, C.SEQS, C.IDs, D.bam, D.bamidx 
                     FROM trimmed_logs AS A 
                          JOIN trimmed_consensus AS B ON (A.fileID = B.fileID) 
@@ -191,16 +130,8 @@ if __name__ == "__main__":
                          JOIN inferSAM AS D ON (D.fileID = A.fileID)""")  
 
     rows = ( (r[0], r[1], r[2], r[3], r[4], bytearray(r[5]), bytearray(r[6]),) for r in curs)   
-    ret = pool.imap_unordered(processor, rows)
-    curs2 = con.cursor() 
-    for dat in ret:
-        if not dat:
-            continue
-        sam = dat[1]
-        bam = dat[2]
-        bamidx = dat[3]
-        ident = dat[0]
-        curs2.execute("""INSERT INTO trimmed_inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (ident, sam, sqlite3.Binary(bam), sqlite3.Binary(bamidx),))
+    worker = ProducerConsumer(args, args.threads, producer, consumer)
+    worker.run(con, rows)
     con.commit()
     con.close()
     
