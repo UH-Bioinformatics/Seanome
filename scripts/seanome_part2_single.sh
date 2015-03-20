@@ -4,10 +4,10 @@
 #SBATCH -t 2-16:00
 #SBATCH -p lm.q
 
-: ${1?"Usage: $0 path_to_renamed.fastq-1 path_to_renamed.fastq-2 Prefix threads"}
-: ${2?"Usage: $0 path_to_renamed.fastq-1 path_to_renamed.fastq-2 Prefix threads"}
-: ${3?"Usage: $0 path_to_renamed.fastq-1 path_to_renamed.fastq-2 Prefix threads"}
-: ${4?"Usage: $0 path_to_renamed.fastq-1 path_to_renamed.fastq-2 Prefix threasd"}
+: ${1?"Usage: $0 path_to_.fastq-1 path_to_.fastq-2 Prefix threads"}
+: ${2?"Usage: $0 path_to_.fastq-1 path_to_.fastq-2 Prefix threads"}
+: ${3?"Usage: $0 path_to_.fastq-1 path_to_.fastq-2 Prefix threads"}
+: ${4?"Usage: $0 path_to_.fastq-1 path_to_.fastq-2 Prefix threasd"}
 
 #get scripts location and add it to the path... 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ) 

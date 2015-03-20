@@ -58,12 +58,6 @@ echo "cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.cleane
 echo "/home/mahdi/bin/fastx/fastx_renamer -n COUNT -i IH.fastq -o IH.fastq_ -Q 33"
 cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.cleaned.forward.fastq \
      ${short_name}.unassembled.cleaned.reverse.fastq > ${short_name}.fastq
-fastx_renamer -n COUNT -i ${short_name}.fastq -o ${short_name}.fastq_ -Q 33
+fastq_rename ${short_name}.fastq ${short_name} > ${short_name}.fastq_
 mv ${short_name}.fastq_ ${short_name}.fastq
 echo -e "\n\n"
-
-
-# Stop here and to the whole combine file step.
-# prefix all the sequence ids with the short_name
-# TODO: DLS -- Need to write my own in C
-renamer.py ${short_name}.fastq ${short_name} ${short_name}.rename.fastq
