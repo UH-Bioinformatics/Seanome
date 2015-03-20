@@ -1,0 +1,13 @@
+Pear: https://github.com/xflouris/PEAR
+FastX toolkit (fastq_quality_filter, fastx_renamer): http://hannonlab.cshl.edu/fastx_toolkit/
+muscle: http://www.drive5.com/muscle/downloads.htm
+EMBOSS (seqret): http://emboss.sourceforge.net/apps/release/6.6/emboss/apps/seqret.html
+RepeatScout: http://bix.ucsd.edu/repeatscout/
+hmmer (nhmmer): http://hmmer.janelia.org/ 
+trimal : http://trimal.cgenomics.org/
+samtools: http://www.htslib.org/
+varscan: http://varscan.sourceforge.net/
+vsearch: https://github.com/torognes/vsearch
+usearch: http://www.drive5.com/usearch/
+seqtk: https://github.com/lh3/seqtk
+ 
