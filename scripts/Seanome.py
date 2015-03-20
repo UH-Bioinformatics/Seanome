@@ -18,12 +18,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 from Bio import AlignIO
 
-
-from classes.ProgramRunner import *
-from classes.NHMMER_TO_ALI import *
-from classes.SAM_BUILDER import *
-
-
+from utils.inferSAM import SAM_BUILDER
 from utils.sqlitedb import buildsqlitedb
 from utils.threadpool import ProducerConsumer
 
@@ -41,7 +36,6 @@ hmmer_query_length = re.compile("Query:\s*ali\s*\[M=(\d+)")
 def remove_readonly(func, path, excinfo):
     os.chmod(path, stat.S_IWRITE)
     func(path)
-
 
 def runInstance(myInstance):
    dryRunInstance(myInstance)
@@ -62,66 +56,8 @@ def makeDirOrdie(dirPath):
       pass
    return dirPath
 
-   
-
-#def consensus(args, pool):
-#   aliFiles = os.listdir(args.alis_dir)
-#   pool.map(runInstance, [ProgramRunner("addConsensus", [os.path.join(args.alis_dir, x), os.path.join(args.cons_output, x)] ) for x in aliFiles])
 
 
-# def maskFile(args,samFile):
-#    '''
-#    Used in maskGenome
-#    '''
-#    samfile = pysam.Samfile(samFile)
-#    alis = samfile.fetch()
-#    mySeq =  SeqIO.read(args.input, 'fasta')
-#    mseq = mySeq.seq.tomutable()
-#    for ali in alis:
-#       tags =  dict(ali.tags)
-#         # if alignment hits with at least the minimum similarity, then mask the hit region                                                                                          
-#       if tags['NM'] and (1 - float(tags['NM'])/int(ali.qlen) >= args.min_similarity):
-#          # TODO: collect the intervals and do it at once since intervals overalap
-#          maskRange = (min(ali.positions), max(ali.positions))
-#          mseq[maskRange[0]: maskRange[1]+1] = "N" * (maskRange[1] - maskRange[0] + 1)
-#          mySeq = SeqRecord(mseq, id=mySeq.id)
-#    SeqIO.write(mySeq, args.output, 'fasta')
-
-
-# def maskGenome(args, pool):
-#    #print args.input
-#    name =  os.path.splitext(os.path.basename(args.input))[0]    
-#    # Can eventually be parallelized using the pool of threads
-#    logging.debug("Starting the masking of input %s"%(args.input))
-#    # run 
-#    logging.debug("Computing frequencies for finding repeats" )
-#    prog = ProgramRunner("build_lmer_table", [args.input, "%s.freqs"%(name) ] )
-
-#    prog.run()
-#    logging.debug("Finding repeats in the %s"%(args.input))
-#    prog = ProgramRunner("repeatScout", [args.input, "%s_repeats.fa"%(name), name+".freqs" ] )
-
-#    prog.run()
-#    # Filter the repeats that do not pass the requirements
-#    # for now, this only consists in dropping short reads < N
-#    logging.debug("Filetering repeats")
-#    repeats = SeqIO.parse("%s_repeats.fa"%(name), 'fasta')
-#    filterReads=[]
-#    for read in repeats:
-#       if len(read.seq) >= args.min_length:
-#          filterReads.append(read)
-#    SeqIO.write(filterReads, "%s_repeats_filtered.fa"%(name), 'fasta')
-#    if len(filterReads) >= 1:
-#       prog = ProgramRunner("bowtie-build", [args.input, name])
-#       prog.run()
-#       prog = ProgramRunner("bowtie-align", [name, "%s_repeats_filtered.fa"%(name), "%s_repeats_filtered.sam"%(name)])
-#       prog.run()
-#       maskFile(args, "%s_repeats_filtered.sam"%(name))
-#    else:
-#       logging.debug("No repeats found is %s"%(args.input))
-#    logging.debug("Done masking input %s"%(args.input))
-
-    
 def find_seed_csr(args):
     logging.debug("Finding seed common shared regions in %s: \n Starting... "%(args.input))
 
@@ -239,12 +175,9 @@ def find_csrConsumer(con, returndat):
 def find_csr(args):
    con = sqlite3.connect(args.database, check_same_thread=False)
    cur = con.cursor()
-   cur.execute("""SELECT 
-                         fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS 
-                   FROM 
-                         csr 
-                   GROUP BY
-                         fileID;""")
+   cur.execute("""SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS 
+                   FROM  csr 
+                   GROUP BY fileID;""")
    genomeseq = SeqIO.read(args.genome, "fasta")
 
    tmpDir = tempfile.mkdtemp(prefix="seanome_", dir=".")
