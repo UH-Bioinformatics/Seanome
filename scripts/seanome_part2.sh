@@ -40,13 +40,11 @@ echo -e "\n\n"
 
 # This step also will generate the database file.
 echo "#4 find seed CSRs (lastz replacement) + Filter and insert seed CSRs into sqlite database"
-echo "Seanome.py -t ${THREADS} seed_csr -i ${short_nameA}_${short_nameB}.lastz -d ${dbname} -l 150 -s 0.94"
-echo "Seanome.py -t ${THREADS} seed_csr -i1 pseudo_refs/${short_nameA}_pseudo_ref_parts.fasta \
+echo "Seanome.py -t ${THREADS}  -d ${dbname} seed_csr -i1 pseudo_refs/${short_nameA}_pseudo_ref_parts.fasta \
+ -n1 ${short_nameA} -i2 pseudo_refs/${short_nameB}_pseudo_ref_parts.fasta -n2 ${short_nameB} -l 150 -s 0.94"
+Seanome.py -t ${THREADS}  -d ${dbname} seed_csr -i1 pseudo_refs/${short_nameA}_pseudo_ref_parts.fasta \
  -n1 ${short_nameA} -i2 pseudo_refs/${short_nameB}_pseudo_ref_parts.fasta -n2 ${short_nameB} \
- -d ${dbname} -l 150 -s 0.94"
-Seanome.py -t ${THREADS} seed_csr -i1 pseudo_refs/${short_nameA}_pseudo_ref_parts.fasta \
- -n1 ${short_nameA} -i2 pseudo_refs/${short_nameB}_pseudo_ref_parts.fasta -n2 ${short_nameB} \
- -d ${dbname} -l 150 -s 0.94
+ -l 150 -s 0.94
 echo -e "\n\n"
 
 #### ####
@@ -54,33 +52,33 @@ echo -e "\n\n"
 #### ####
 
 echo "#5 Create initial consensus sequences"
-echo "makeCons.py -t ${THREADS} -d  ${dbname}"
-makeCons.py -t ${THREADS} -d  ${dbname}
+echo "Seanome.py -t ${THREADS}  -d ${dbname} consensus"
+Seanome.py -t ${THREADS}  -d ${dbname} consensus
 echo -e "\n\n"
 
 echo "#6 based on the CSRs, generate a sam/bam file for each.  Also, update the consensus"
-echo "Seanome.py -t ${THREADS} inferSAM  -s cluster_bams/ -d  ${dbname}"
-Seanome.py -t ${THREADS} inferSAM  -s cluster_bams/ -d  ${dbname}
+echo "Seanome.py -t ${THREADS} -d  ${dbname} inferSAM  -s cluster_bams"
+Seanome.py -t ${THREADS} -d  ${dbname} inferSAM  -s cluster_bams
 echo -e "\n\n"
 
 echo "#7 With the CSRs, run trimal and store the cleanned sequences and the colnumber log"
-echo "trimall.py -t ${THREADS} -d  ${dbname}"
-trimall.py -t ${THREADS} -d  ${dbname}
+echo "Seanome.py -t ${THREADS}  -d ${dbname}  trimAL"
+Seanome.py -t ${THREADS}  -d ${dbname}  trimAL
 echo -e "\n\n"
 
 echo "#8 store modified sam files based on what the trimall.py step provided"
-echo "cleanSAM.py -t ${THREADS} -d  ${dbname}"
-cleanSAM.py -t ${THREADS} -d  ${dbname}
+echo "Seanome.py -t ${THREADS}  -d ${dbname} cleanSAM"
+Seanome.py -t ${THREADS}  -d ${dbname} cleanSAM
 echo -e "\n\n"
 
 echo "#9 generate a vcf file for each CSR "
-echo "vcf_generator.py -t ${THREADS} -d  ${dbname}"
-vcf_generator.py -t ${THREADS} -d  ${dbname}
+echo "Seanome.py -t ${THREADS}  -d ${dbname} generateVCF"
+Seanome.py -t ${THREADS}  -d ${dbname} generateVCF
 echo -e "\n\n"
 
 echo "#10 Manually go through the pile at each location the vcf specified, and store a modified vcf file"
-echo "vcfmod.py -t ${THREADS} -d  ${dbname}"
-vcfmod.py -t ${THREADS} -d  ${dbname}
+echo "Seanome.py -t ${THREADS}  -d ${dbname} updateVCF"
+Seanome.py -t ${THREADS}  -d ${dbname} updateVCF
 echo -e "\n\n"
 
 cd ..

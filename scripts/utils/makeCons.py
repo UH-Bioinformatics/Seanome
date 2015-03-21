@@ -31,12 +31,7 @@ def consumer(con, returndata):
 
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--threads', type = int, default = 1, help = "Number of processing threads. (default: 1)" )
-    parser.add_argument('-d', '--database',  required = True, help = "Seanome sqlite db")
-    args = parser.parse_args()
-
+def generateConsensusSequences(args):
     con = sqlite3.connect(args.database, check_same_thread = False)
     con.execute("""PRAGMA foreign_keys = ON;""")
     con.execute("""CREATE TABLE IF NOT EXISTS consensus(id INTEGER PRIMARY KEY, fileID INTEGER, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")

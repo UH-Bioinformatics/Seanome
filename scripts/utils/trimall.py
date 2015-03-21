@@ -1,4 +1,3 @@
-#!/usr/bin/python 
 import argparse
 import os
 import sys
@@ -45,13 +44,9 @@ def consumer(con, returndata):
     con.commit()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--threads', type = int, default = 1, help = "Number of processing threads. (default: 1)" )
-    parser.add_argument('-d', '--database',  required = True, help = "Seanome sqlite db")
 
-    args = parser.parse_args()
 
+def runTrimAL(args)
     con = sqlite3.connect(args.database, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_csr(id INTEGER PRIMARY KEY, fileID INTEGER, seqID TEXT, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")

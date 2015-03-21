@@ -100,11 +100,7 @@ def computeData(inputvcf, outputvcf, samf, shift):
     return data
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Fills in missing data not caught by platypus')
-    parser.add_argument('-t', '--threads', type = int, default = 1, help = "Number of processing threads. (default: 1)" )
-    parser.add_argument('-d', '--database', help='Specified Seanome Database', required = True)
-    args = parser.parse_args()
+def updateVCFfiles(args):
     con = sqlite3.connect(args.database, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_modvcf(id INTEGER PRIMARY KEY, fileID INTEGER, vcf TEXT, json TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
