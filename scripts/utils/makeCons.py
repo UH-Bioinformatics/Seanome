@@ -1,15 +1,12 @@
-#!/usr/bin/python
-
 import sys
 import sqlite3
-import argparse
 import itertools
 import cStringIO as StringIO
 
 from Bio import AlignIO
 from Bio.Align import AlignInfo
 
-from utils.threadpool import ProducerConsumer
+from threadpool import ProducerConsumer
 
 
 def producer(info):

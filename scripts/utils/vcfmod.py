@@ -1,18 +1,14 @@
-#!/usr/bin/python
-
 import vcf
 import sys
 import os
-import argparse
 import json
 from collections import Counter, defaultdict
 import pysam
 import sqlite3
 import cStringIO as StringIO
 
-from utils.threadpool import ProducerConsumer
-from utils.utils import removeFiles
-
+from threadpool import ProducerConsumer
+from utils import removeFiles
 
 def consumer(con, returndata):
     cur = con.cursor()

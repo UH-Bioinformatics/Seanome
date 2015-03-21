@@ -1,16 +1,13 @@
-#!/usr/bin/python
-
 from Bio import SeqIO
 import pysam 
 import sqlite3
 import cStringIO as StringIO
-import argparse
 import os
 
-from utils.utils import removeFiles
-from utils.cigar import expandCigar, compressCigar
-from utils.samToBam import samToBam
-from utils.threadpool import ProducerConsumer
+from utils import removeFiles
+from cigar import expandCigar, compressCigar
+from samToBam import samToBam
+from threadpool import ProducerConsumer
 
 
 def producer(info):
