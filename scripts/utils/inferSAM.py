@@ -10,7 +10,61 @@ import cStringIO as StringIO
 import subprocess
 from collections import Counter
 
+
 from utils import removeFiles
+from threadpool import ProducerConsumer
+
+
+
+def inferSAMProducer(info):
+    name = str(info[0])
+    fastseqs = info[1] + info[2]
+    samdir = info[3]
+    sb = SAM_BUILDER(name, fastseqs, samdir)
+    return sb.run()
+
+
+def inferSAMConsumer(con, returndata):
+    curs = con.cursor()
+    for dat in returndata:
+        if not dat:
+            continue
+        sam = dat[0]
+        bam = dat[1]
+        bamidx = dat[2]
+        ident = dat[3]
+        groups = dat[4]
+        newcon = dat[5]
+        curs.execute("""INSERT INTO inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (ident, sam, sqlite3.Binary(bam), sqlite3.Binary(bamidx),))
+        curs.execute("""UPDATE consensus SET sequence = ? WHERE fileID = ?;""", (newcon, ident, ) )
+        curs.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (ident, g,) for g in groups )  )
+    con.commit()
+
+
+def inferSAM(args):
+    con = sqlite3.connect(args.database, check_same_thread=False)
+    con.execute("""PRAGMA foreign_keys = ON;""")
+    con.execute("""CREATE TABLE IF NOT EXISTS inferSAM(id INTEGER PRIMARY KEY, fileID INTEGER, sam TEXT, bam BLOB, bamidx BLOB, FOREIGN KEY(fileID) REFERENCES files(id));""")
+    con.execute("""CREATE INDEX IF NOT EXISTS infersam_fileid_idx ON inferSAM(fileID ASC);""")
+    con.execute("""CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY, fileID INTEGER, groupid TEXT, FOREIGN KEY(fileID) REFERENCES files(id) );""")
+    con.execute("""CREATE INDEX IF NOT EXISTS groups_fileid_idx ON groups(fileID ASC);""")
+
+    con.commit()
+
+    curs = con.cursor()
+    curs.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS 
+                    FROM ( 
+                          SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS 
+                          FROM csr group by fileID) AS A 
+                    JOIN consensus AS B ON (A.fileID = B.fileID);""")
+    rows = (  (r[0], ">Consensus\n%s\n"%(r[1]), "\n".join([">%s\n%s"%(i,s,) for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
+              itertools.izip(curs, itertools.repeat(str(args.split_sam_dir)) )    )
+
+    worker = ProducerConsumer(args, args.threads, inferSAMProducer, inferSAMConsumer)
+    worker.run(con, rows)
+    con.commit()
+    con.close()
+
 
 class SAM_BUILDER():
     cigar_re = re.compile(r'([0-9]+)([M=XID])')
