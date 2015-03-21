@@ -46,7 +46,7 @@ if __name__ == "__main__":
     curs = con.cursor()    
     curs.execute("""SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM csr group by fileID;""")
 
-    wrker = ProducerConsumer(args.threads, producer, consumer)
-    wrker.run(con, curs)
+    worker = ProducerConsumer(args, args.threads, producer, consumer)
+    worker.run(con, curs)
     con.commit()
     con.close()

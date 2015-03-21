@@ -64,7 +64,7 @@ def find_seed_csr(args):
     inFile = open(args.input, 'r')
     outputdb= args.database
     outFileNum=0
-    con = buildsqlitedb(args, outputdb)
+    con = buildsqlitedb(outputdb)
     filemap = dict()
     c = con.cursor()
     for line in inFile:
@@ -203,9 +203,9 @@ def inferSAMProducer(info):
     return sb.run()
 
 
-def inferSAMConsumer(con, returndat):
+def inferSAMConsumer(con, returndata):
     curs = con.cursor()
-    for dat in ret:
+    for dat in returndata:
         if not dat:
             continue
         sam = dat[0]

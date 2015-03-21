@@ -8,8 +8,8 @@ class ProducerConsumer(object):
         self.consumer = consumer
 
     def run(self, passthrough, producerargs):
-        pool = Pool(processes = threads)
-        ret = self.pool.imap_unordered(self.producer, producerargs)
+        pool = Pool(processes = self.threads)
+        ret = pool.imap_unordered(self.producer, producerargs)
         self.consumer(passthrough, ret)
         pool.close()
 

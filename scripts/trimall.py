@@ -29,7 +29,7 @@ def producer(info):
     sout = filter(None, sout.splitlines()) # strip empty lines
     fasta = "\n".join(sout[:-1])
     log = sout[-1]
-    return fasta, log, info[0], info[3]
+    return fasta, log, info[0]
 
 
 def consumer(con, returndata):
@@ -38,10 +38,10 @@ def consumer(con, returndata):
         if not r:
             continue
         seqs = list(SeqIO.parse(StringIO.StringIO(r[0]), "fasta"))
-        curs.executemany("""INSERT INTO trimmed_csr(fileID, seqID, sequence, reverse) VALUES(?, ?, ?, ?)""", 
-                         [(idx, s.id, str(s.seq), int(d)) for idx, s, d in itertools.izip( itertools.repeat(r[-1]), seqs[1:], r[3].split("\t")) ])
-        curs.execute("""INSERT INTO trimmed_consensus(fileID, sequence) VALUES(?, ?)""", (r[-1], str(seqs[0].seq)))
-        curs.execute("""INSERT INTO trimmed_logs(fileID, positions) VALUES(?, ?)""", (r[-1], r[1]))
+        curs.executemany("""INSERT INTO trimmed_csr(fileID, seqID, sequence) VALUES(?, ?, ?)""", 
+                         [(idx, s.id, str(s.seq)) for idx, s in itertools.izip( itertools.repeat(r[2]), seqs[1:]) ])
+        curs.execute("""INSERT INTO trimmed_consensus(fileID, sequence) VALUES(?, ?)""", (r[2], str(seqs[0].seq)))
+        curs.execute("""INSERT INTO trimmed_logs(fileID, positions) VALUES(?, ?)""", (r[2], r[1]))
     con.commit()
 
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     con = sqlite3.connect(args.database, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_csr(id INTEGER PRIMARY KEY, fileID INTEGER, seqID TEXT, sequence TEXT,  reverse BOOLEAN, FOREIGN KEY(fileID) REFERENCES files(id));""")
+    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_csr(id INTEGER PRIMARY KEY, fileID INTEGER, seqID TEXT, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
     con.execute("""CREATE INDEX IF NOT EXISTS trimmed_csr_fileid_idx ON trimmed_csr(fileID ASC);""")
 
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_consensus(id INTEGER PRIMARY KEY, fileID INTEGER, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     curs = con.cursor()
     curs.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS 
                     FROM (
-                          SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS , group_concat(reverse, '\t') as DIRECTION
+                          SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS
                           FROM csr group by fileID) AS A 
                     JOIN consensus AS B ON (A.fileID = B.fileID);""")
 

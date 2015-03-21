@@ -8,17 +8,18 @@ import sqlite3
 from Bio import SeqIO
 from Bio.Seq import Seq
 import pysam 
-from collections import Counter
+from collections import Counter, OrderedDict
 
 from utils.ucparse import uclustUserParser
 from utils.cigar import cleanupCigar
 from utils.samformater import makeSAMHdr, generateReadGroups
+from utils.samToBam import samToBam
 from utils.sqlitedb import buildsqlitedb
 from utils.consensus import updateConsensus
 from utils.utils import removeFiles
 
 
-def makeSAMrec(pos, seqinfo, cig, orient, refname, single = False):
+def makeSAMrec(pos, seqinfo, cig, orient, refname, single = False, grpident = None):
     newcig, pos, rmfront, rmback = cleanupCigar(pos, cig, len(seqinfo.seq))
     a = pysam.AlignedRead()
     a.tid = 0
@@ -51,13 +52,16 @@ def makeSAMrec(pos, seqinfo, cig, orient, refname, single = False):
     a.tlen = 0
     if single:
         tags=  []
-        tags.append( ("RG", "GROUP-%s"%(seqinfo.id.split("_")[0]),) )
+        if grpident == None:
+            tags.append( ("RG", "GROUP-%s"%(seqinfo.id.split("_")[0]),) )
+        else:
+            tags.append( ("RG", "GROUP-%s"%(grpident),) )
         a.tags = tags
     return a
 
 
 def processSingle(args):
-    con = buildsqlitedb(args, args.database, False)
+    con = buildsqlitedb(args.database, False)
     cur = con.cursor()
     parser = uclustUserParser(args.ucinput)
     seqindex = SeqIO.index(args.sequences, "fastq")
@@ -74,10 +78,16 @@ def processSingle(args):
     for idx, r in enumerate(clusterid):
         conseq = conindex[r]
         
-        grps = set()
+        grps = OrderedDict()
+        gidx = 0
         for d in parser.getClusters()[r]:
-            srec.append(makeSAMrec(start, d[3], d[1], d[2], conseq.id, True))
-            grps.add(d[0].split("_")[0])
+
+            grpident= d[0].split("_")[0]
+            if grpident not in grps:
+                grps[ grpident ] = gidx
+                gidx += 1
+
+            srec.append(makeSAMrec(start, d[3], d[1], d[2], conseq.id, True, grps[ grpident ]))
             if d[-1]:
                 tmp = str(d[3].seq)
                 o.write(tmp)
@@ -90,7 +100,7 @@ def processSingle(args):
         fileID = row[0]
         tmp = str(conseq.seq)
         
-        rgrps, idtomap = generateReadGroups(grps)
+        rgrps, idtomap = generateReadGroups(grps.iterkeys())
         cur.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (fileID, g['ID'],) for g in  rgrps)  )      
         samout = pysam.Samfile("%s.sam"%(fname ) , "wh", header= makeSAMHdr("Consensus", len(conseq.seq), rgrps))
         for f in srec:
@@ -99,7 +109,7 @@ def processSingle(args):
         samname = "%s.sam"%(fname)
        
         samdat = open(samname).read()
-        bamname, bamidxname = samToBam(samdat, prefix, False)
+        bamname, bamidxname = samToBam(samdat, fileID, False)
         tmp = updateConsensus(bamname)
         bamdat = open(bamname).read() 
         bamidx = open(bamidxname).read() 
@@ -152,10 +162,10 @@ def processMultiple(args):
         samout.write(f)
     samout.close()
     samname = "%s.sam"%(prefix)
-  
-    bamname, bamidxname = samToBam(open(samname).read(), prefix, False)
 
-    
+    bamname, bamidxname = samToBam(open(samname).read(), prefix, False)
+    removeFiles([samname])    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 

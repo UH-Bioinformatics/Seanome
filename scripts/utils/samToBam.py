@@ -1,10 +1,11 @@
+import sys
 import subprocess
 import os
 from utils import removeFiles
 
 
 def samToBam(samdat, fprefix, buffers = True):
-    if not buffer:
+    if not buffers:
         return samToBamNoBuffer(samdat, fprefix)
     else:
         return samToBamBuffers(samdat, fprefix)
@@ -57,6 +58,6 @@ def samToBamBuffers(samdat, fprefix):
 
     os.system("""samtools index %s > /dev/null 2> /dev/null"""%(bamout))
     bamidxdat = open("%s.bai"%(bamout), "rb").read()
-    removeFiles([bamout, "%s.tmp.bam.bai"%(fileidx)])
+    removeFiles([bamout, "%s.tmp.bam.bai"%(fprefix)])
 
     return bamdat, bamidxdat

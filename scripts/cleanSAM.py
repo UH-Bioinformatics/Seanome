@@ -113,8 +113,6 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--database',  required = True, help = "Seanome sqlite db")
     args = parser.parse_args()
 
-    pool = Pool(processes = args.threads)
-
     con = sqlite3.connect(args.database, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_inferSAM(id INTEGER PRIMARY KEY, fileID INTEGER, sam TEXT, bam BLOB, bamidx BLOB, FOREIGN KEY(fileID) REFERENCES files(id));""")

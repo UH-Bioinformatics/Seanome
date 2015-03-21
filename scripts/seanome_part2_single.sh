@@ -105,8 +105,8 @@ echo -e "\n\n"
 
 
 echo "#11: Tracking overlaps by following indirection"
-echo "trackOverlaps.py ${combined_name}_mod_1.out  ${combined_name}.final.out > ${combined_name}.mapping_to_cons"
-trackOverlaps.py ${combined_name}_mod_1.out  ${combined_name}.final.out > ${combined_name}.mapping_to_cons
+echo "trackOverlaps.py -i1 ${combined_name}_mod_1.out  -i2 ${combined_name}.final.out  -o ${combined_name}.mapping_to_cons"
+trackOverlaps.py -i1 ${combined_name}_mod_1.out  -i2 ${combined_name}.final.out  -o ${combined_name}.mapping_to_cons
 echo -e "\n\n"
 
 
@@ -139,7 +139,7 @@ echo "usearch -usearch_local repeats_${combined_name}.fa  -db ${combined_name}.f
  -query_cov 0.75  -threads ${THREADS} --maxaccepts 0 --maxrejects 0"
 echo "maskSeqs.py -i ${combined_name}_bad.ids  -f ${combined_name}.final.contigs.masked -o ${combined_name}.final.contigs.masked_"
 echo "mv ${combined_name}.final.contigs.masked_ ${combined_name}.final.contigs.masked"
-echo "grep ">" ${combined_name}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${combined_name}_clean.ids"
+echo "grep '>' ${combined_name}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${combined_name}_clean.ids"
 build_lmer_table -l 12 -sequence ${combined_name}.temp.pseudo.fasta -freq freqs_${combined_name}
 RepeatScout -sequence ${combined_name}.temp.pseudo.fasta -output repeats_${combined_name}.fa -freq freqs_${combined_name} -l 12
 # find matches with repeats in the contigs. Hits need to be of at least 75% similarity                                                                                          
@@ -148,7 +148,7 @@ usearch -usearch_local repeats_${combined_name}.fa  -db ${combined_name}.final.c
  -query_cov 0.75  -threads ${THREADS} --maxaccepts 0 --maxrejects 0 
 maskSeqs.py -i ${combined_name}_bad.ids  -f ${combined_name}.final.contigs.masked -o ${combined_name}.final.contigs.masked_
 mv ${combined_name}.final.contigs.masked_ ${combined_name}.final.contigs.masked
-grep ">" ${combined_name}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${combined_name}_clean.ids
+grep '>' ${combined_name}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${combined_name}_clean.ids
 echo -e "\n\n"
 
 
@@ -159,9 +159,9 @@ echo "#16: Building consensus sequences with min $minClustSize and max $maxClust
 echo "make_sam_with_cons.py -u  ${combined_name}.mapping_to_cons -q ${combined_name}.fastq \
  -c ${combined_name}_clean.ids -f ${combined_name}.final.contigs.masked -l ${minClustSize} \ 
  -m ${maxClustSize}  single -d ${combined_name}.db3"
-make_sam_with_cons.py -u  ${combined_name}.mapping_to_cons -q ${combined_name}.fastq \ 
- -c ${combined_name}_clean.ids -f ${combined_name}.final.contigs.masked -l ${minClustSize} \
- -m ${maxClustSize}  single -d ${combined_name}.db3
+make_sam_with_cons.py -u  ${combined_name}.mapping_to_cons -q ${combined_name}.fastq \
+-c ${combined_name}_clean.ids -f ${combined_name}.final.contigs.masked \
+-l ${minClustSize} -m ${maxClustSize}  single -d ${combined_name}.db3
 echo -e "\n\n"
 
 

@@ -55,7 +55,7 @@ echo -e "\n\n"
 echo "#5: Generating input fastq file (renaming)"
 echo "cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.cleaned.forward.fastq \
      ${short_name}.unassembled.cleaned.reverse.fastq > ${short_name}.fastq"
-echo "/home/mahdi/bin/fastx/fastx_renamer -n COUNT -i IH.fastq -o IH.fastq_ -Q 33"
+echo "fastq_rename ${short_name}.fastq ${short_name} > ${short_name}.fastq_"
 cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.cleaned.forward.fastq \
      ${short_name}.unassembled.cleaned.reverse.fastq > ${short_name}.fastq
 fastq_rename ${short_name}.fastq ${short_name} > ${short_name}.fastq_

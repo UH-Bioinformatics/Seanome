@@ -7,7 +7,7 @@ FINDALL_CMP=re.compile(r'([0-9]*)([MID=])')
 def expandCigar( cigar):
     cigstr = ""
     for m in cigar_re.finditer(cigar):
-        if p[0]:
+        if m.group(1):
             cigstr +=  m.group(2) * int(m.group(1))
         else:
             cigstr +=  m.group(2)

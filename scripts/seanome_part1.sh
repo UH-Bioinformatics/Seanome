@@ -50,7 +50,7 @@ echo -e "\n\n"
 echo "#3: Generating input fastq file (renaming)"
 echo "cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.cleaned.forward.fastq \
      ${short_name}.unassembled.cleaned.reverse.fastq > ${short_name}.fastq"
-echo "fastq_rename ${short_name}.fastq > -o ${short_name}.fastq_"
+echo "fastq_rename ${short_name}.fastq > ${short_name}.fastq_"
 cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.cleaned.forward.fastq \
      ${short_name}.unassembled.cleaned.reverse.fastq > ${short_name}.fastq
 fastq_rename ${short_name}.fastq > ${short_name}.fastq_
@@ -127,7 +127,6 @@ echo -e "\n\n"
 echo "#12: Tracking overlaps by following indirection"
 echo "trackOverlaps.py -i1 ${short_name}_mod_1.out  -i2 ${short_name}.final.out  -o ${short_name}.mapping_to_cons"
 trackOverlaps.py -i1 ${short_name}_mod_1.out  -i2 ${short_name}.final.out  -o ${short_name}.mapping_to_cons
-
 echo -e "\n\n"
 
 
