@@ -1,6 +1,12 @@
 import sqlite3
 
 
+QUERY_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM csr GROUP BY fileID"""
+QUERY_TRIMMED_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM trimmed_csr GROUP BY fileID"""
+
+
+
+
 def buildsqlitedb(dbname, ismulti = True):
     if ismulti:
         return buildMultieDb(dbname)

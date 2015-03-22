@@ -96,18 +96,10 @@ def computeData(inputvcf, outputvcf, samf, shift):
     return data
 
 
-def updateVCFfiles(args):
-    con = sqlite3.connect(args.database, check_same_thread=False)
-    con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_modvcf(id INTEGER PRIMARY KEY, fileID INTEGER, vcf TEXT, json TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_modvcf_fileid_idx ON trimmed_modvcf(fileID ASC);""")
-    con.commit()
-    
+def updateVCFfiles(args, con):
     cur = con.cursor()
     cur.execute("""SELECT A.fileID, A.vcf, B.bam, B.bamidx FROM trimmed_vcf as A JOIN trimmed_inferSAM AS B ON (A.fileID = B.fileID); """)
     rows = ( (r[0], r[1], bytearray(r[2]), bytearray(r[3]), ) for r in cur )
 
     worker = ProducerConsumer(args, args.threads, producer, consumer)
     worker.run(con, rows)
-    con.commit()
-    con.close()

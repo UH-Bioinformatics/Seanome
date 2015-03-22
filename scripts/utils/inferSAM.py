@@ -10,10 +10,9 @@ import cStringIO as StringIO
 import subprocess
 from collections import Counter
 
-
-from utils import removeFiles
+from sqlitedb import QUERY_CSR_AS_SEQS
+from utils import removeFiles, CONSENSUS_NAME
 from threadpool import ProducerConsumer
-
 
 
 def inferSAMProducer(info):
@@ -41,29 +40,18 @@ def inferSAMConsumer(con, returndata):
     con.commit()
 
 
-def inferSAM(args):
+def inferSAM(args, con):
     con = sqlite3.connect(args.database, check_same_thread=False)
-    con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS inferSAM(id INTEGER PRIMARY KEY, fileID INTEGER, sam TEXT, bam BLOB, bamidx BLOB, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS infersam_fileid_idx ON inferSAM(fileID ASC);""")
-    con.execute("""CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY, fileID INTEGER, groupid TEXT, FOREIGN KEY(fileID) REFERENCES files(id) );""")
-    con.execute("""CREATE INDEX IF NOT EXISTS groups_fileid_idx ON groups(fileID ASC);""")
-
-    con.commit()
-
     curs = con.cursor()
     curs.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS 
-                    FROM ( 
-                          SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS 
-                          FROM csr group by fileID) AS A 
-                    JOIN consensus AS B ON (A.fileID = B.fileID);""")
-    rows = (  (r[0], ">Consensus\n%s\n"%(r[1]), "\n".join([">%s\n%s"%(i,s,) for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
+                    FROM ( %(csr_as_seqeuences)s ) AS A 
+                    JOIN consensus AS B ON (A.fileID = B.fileID);"""%sict(csr_as_seqeuences = QUERY_CSR_AS_SEQS) )
+    rows = (  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = CONSENSUS_NAME, seq[1]), "\n".join([">%s\n%s"%(i,s,)        for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
               itertools.izip(curs, itertools.repeat(str(args.split_sam_dir)) )    )
 
     worker = ProducerConsumer(args, args.threads, inferSAMProducer, inferSAMConsumer)
     worker.run(con, rows)
-    con.commit()
-    con.close()
+
 
 
 class SAM_BUILDER():
@@ -92,19 +80,6 @@ class SAM_BUILDER():
         return pos
 
 
-    # def getShiftedPosRead(self, cigar, start):
-    #     pos = 0
-    #     shiftedReadStart=start
-    #     while pos <= start + 1:
-    #         if cigar[pos] == "I" :
-    #             shiftedReadStart += 1
-    #         # DSL - added since positions in tablet for reads that fit this case were off.
-    #         elif cigar[pos] == 'D':
-    #             shiftedReadStart -= 1            
-    #         pos += 1
-    #     return shiftedReadStart
-
-
     def getShiftedPosRead(self, cigar, start):
         pos = 0
         shiftedReadStart=start
@@ -112,11 +87,6 @@ class SAM_BUILDER():
         while nbMatches < start:
             if cigar[pos] == "I" :
                 shiftedReadStart += 1
-#            # DSL - added since positions in tablet for reads that fit this case were off
-#            elif cigar[pos] == 'D':
-
-#                shiftedReadStart -= 1
-#                nbMatches+=1
             else:
                 nbMatches+=1
             pos += 1
@@ -172,9 +142,6 @@ class SAM_BUILDER():
         tags=  []
         # DLS: force to use our regroup information instead of what was previously filled in..
         tags.append( ("RG", readgroupID,) )
-        #tmp = self.__getTag__(sinfo, "RG")
-        #if tmp:
-        #    tags.append( ("RG", tmp,) )
             
         tmp = self.__getTag__(sinfo, "X0")
         if tmp:
@@ -209,8 +176,6 @@ class SAM_BUILDER():
 
     
     def computeStartPositions(self, read, refStart, refEnd, isReverse):
-        #print read.pos
-        #print refStart
         if not isReverse: # this means ref is forward
             #if read starts Before msaRef
             if read.pos < refStart:
@@ -341,26 +306,26 @@ class SAM_BUILDER():
 
 
     def generateReadGroups(self, groups):
-         RG_template = { 'ID': '',
+        RG_template = { 'ID': '',
                          'LB': '', 
                          'SM': '',
                          'PL': 'ILLUMINA'} # Platform/technology used to produce the reads. 
-         readgroups = []
-         idtomap = {}
-         for idx, g in enumerate(groups):
-             rgrp = RG_template.copy()
-             rgrp['ID'] = "GROUP-"+str(idx + 1)
-             rgrp['LB'] = g
-             rgrp['SM'] = g
-             readgroups.append(rgrp)
-             idtomap[g] = "GROUP-"+str(idx + 1)
-         return readgroups, idtomap
+        readgroups = []
+        idtomap = {}
+        for idx, g in enumerate(groups):
+            rgrp = RG_template.copy()
+            rgrp['ID'] = "GROUP-"+str(idx + 1)
+            rgrp['LB'] = g
+            rgrp['SM'] = g
+            readgroups.append(rgrp)
+            idtomap[g] = "GROUP-"+str(idx + 1)
+        return readgroups, idtomap
 
 
     def updateConsensus(self, bamfile):
         samfile = pysam.Samfile(bamfile)
         colBases = []
-        for pileupcolumn in samfile.pileup('Consensus'):
+        for pileupcolumn in samfile.pileup(CONSENSUS_NAME):
             bases =[]
             for pup in pileupcolumn.pileups:
                 bases.append(pup.alignment.seq[pup.qpos])
@@ -433,9 +398,3 @@ class SAM_BUILDER():
         newcon = self.updateConsensus(bamout)
         removeFiles([samout, bamout, "%s.bai"%(bamout)])
         return samdat, bamdat, bamidxdat, self.name, refIDToReadgroup.values(), newcon
-
-   
-
-    def dryRun(self):
-        pass
-

@@ -6,6 +6,7 @@ import cStringIO as StringIO
 from Bio import AlignIO
 from Bio.Align import AlignInfo
 
+from sqlitedb import QUERY_CSR_AS_SEQS
 from threadpool import ProducerConsumer
 
 
@@ -27,18 +28,8 @@ def consumer(con, returndata):
     con.commit()
 
 
-
-def generateConsensusSequences(args):
-    con = sqlite3.connect(args.database, check_same_thread = False)
-    con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS consensus(id INTEGER PRIMARY KEY, fileID INTEGER, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS con_fileid_idx ON consensus(fileID ASC);""")
-    con.commit()
-
+def generateConsensusSequences(args, con):
     curs = con.cursor()    
-    curs.execute("""SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM csr group by fileID;""")
-
+    curs.execute("%s;"%(QUERY_CSR_AS_SEQS))
     worker = ProducerConsumer(args, args.threads, producer, consumer)
     worker.run(con, curs)
-    con.commit()
-    con.close()

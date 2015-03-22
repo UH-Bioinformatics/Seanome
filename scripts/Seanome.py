@@ -100,7 +100,12 @@ def main(argv):
     args = parser.parse_args()
     #logging.debug("Initial ARGS are:")
     #logging.debug(args)
-    args.func(args)
+
+    con = buildsqlitedb(args.database)
+    args.func(args, con)
+    con.commit()
+    con.close()
+    
 
 
 if __name__ == "__main__":

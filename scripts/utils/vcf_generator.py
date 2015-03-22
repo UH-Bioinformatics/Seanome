@@ -6,7 +6,7 @@ import sqlite3
 import cStringIO as StringIO
 
 from threadpool import ProducerConsumer
-from utils import removeFiles
+from utils import removeFiles, CONSENSUS_NAME
 
 def producer(info):
     fileidx = str(info[0])
@@ -15,7 +15,7 @@ def producer(info):
     consensus = str(info[1])
 
     with open(inputdata, "w") as o:
-        print >> o, ">Consensus\n%s"%(consensus)
+        print >> o, ">%(seqID)s\n%(seq)s"%dict(seqID = CONSENSUS_NAME, seq = consensus)
     os.system("""samtools faidx %s"""%(inputdata))
 
     bamfile = "%s.bam"%(fileidx)
@@ -53,21 +53,12 @@ def consumer(con, returndata):
 
 
 
-def generateVCFfiles(args):
-    con = sqlite3.connect(args.database, check_same_thread=False)
-    con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_vcf(id INTEGER PRIMARY KEY, fileID INTEGER, vcf TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_vcf_fileid_idx ON trimmed_vcf(fileID ASC);""")
+def generateVCFfiles(args, con):
     curs = con.cursor()
-
     curs.execute("""SELECT A.fileID, A.bam, B.sequence, C.groupids
                     FROM trimmed_inferSAM AS A 
                     JOIN trimmed_consensus AS B ON (A.fileID = B.fileID) 
                     JOIN (SELECT  D.fileID as fid, group_concat(D.groupid, '\t') as groupids FROM groups AS D GROUP BY fileID) AS C  ON (A.fileID = C.fid);""")
-
     rows = ( (r[0], r[2], bytearray(r[1]), r[3]) for r in curs )
-
     worker = ProducerConsumer(args, args.threads, producer, consumer)
     worker.run(con, rows)
-    con.commit()
-    con.close()

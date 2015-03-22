@@ -7,7 +7,8 @@ import cStringIO as StringIO
 from Bio import SeqIO
 
 from threadpool import ProducerConsumer
-from utils import removeFiles
+from utils import removeFiles, CONSENSUS_NAME
+from sqlitedb import QUERY_CSR_AS_SEQS
 
 
 def producer(info):
@@ -15,7 +16,7 @@ def producer(info):
     consensus = str(info[1])
     seqs = [">%s\n%s"%(str(i), str(s)) for i, s in zip(info[2].split("\t"), info[3].split("\t"))]
     with open(inputdata, "w") as o:
-        print >> o, ">Consensus\n%s"%(consensus)
+        print >> o, ">%(seqID)s\n%(seq)s"%(CONSENSUS_NAME, consensus)
         print >> o, "%s"%("\n".join(seqs))
     cline = """trimal -in %s  -fasta -gt 0.8 -st 0.001 -cons 60 -colnumbering"""%(inputdata)
     child = subprocess.Popen(str(cline),
@@ -43,28 +44,10 @@ def consumer(con, returndata):
     con.commit()
 
 
-
-
-def runTrimAL(args)
-    con = sqlite3.connect(args.database, check_same_thread=False)
-    con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_csr(id INTEGER PRIMARY KEY, fileID INTEGER, seqID TEXT, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_csr_fileid_idx ON trimmed_csr(fileID ASC);""")
-
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_consensus(id INTEGER PRIMARY KEY, fileID INTEGER, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_con_fileid_idx ON trimmed_consensus(fileID ASC);""")
-
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_logs(id INTEGER PRIMARY KEY, fileID INTEGER, positions TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_log_fileid_idx ON trimmed_logs(fileID ASC);""")
-
+def runTrimAL(args, con):
     curs = con.cursor()
     curs.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS 
-                    FROM (
-                          SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS
-                          FROM csr group by fileID) AS A 
-                    JOIN consensus AS B ON (A.fileID = B.fileID);""")
-
+                    FROM ( %(csr_as_seqs)s ) AS A
+                    JOIN consensus AS B ON (A.fileID = B.fileID);"""%dict(csr_as_seqs = QUERY_CSR_AS_SEQS ) )
     worker = ProducerConsumer(args, args.threads, producer, consumer)
     worker.run(con, curs)
-    con.commit()
-    con.close()

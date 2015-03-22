@@ -1,6 +1,5 @@
 import sqlite3
 from tempfile import mkstemp
-from sqlitedb import buildsqlitedb
 import cStringIO as StringIO
 from Bio import SeqIO
 from utils import removeFiles
@@ -57,10 +56,9 @@ def find_shared_regions(args):
     return data
 
 
-def find_seed_csr(args):   
+def find_seed_csr(args, con):   
     inFile = updateSearchOutput( args,args.input1, args.input2, find_shared_regions(args)) 
 
-    con = buildsqlitedb(args.database)
     filemap = dict()
     outFileNum=0
     c = con.cursor()
@@ -81,8 +79,4 @@ def find_seed_csr(args):
             c.execute("""INSERT INTO csr(fileID, seqID, sequence, seed) values(?,?,?,?)""", (fileID, seqid1, data[11], 1) )
             c.execute("""INSERT INTO csr(fileID, seqID, sequence, seed) values(?,?,?,?)""", (fileID, seqid2, data[12], 1) )
             outFileNum += 1
-
-    con.execute("""CREATE INDEX IF NOT EXISTS csr_fileid_idx ON csr(fileID ASC);""")
-    con.execute("""CREATE INDEX IF NOT EXISTS csr_seed_idx ON csr(seed ASC);""")
     con.commit()
-    con.close()

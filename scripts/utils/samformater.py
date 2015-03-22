@@ -1,6 +1,4 @@
 
-
-
 def makeSAMHdr(ref, seqlen, rgroups = None):
     if rgroups:
         return dict(HD = dict(VN = '1.0'), SQ = [ {'SN': ref, 'LN': seqlen }], RG = rgroups )

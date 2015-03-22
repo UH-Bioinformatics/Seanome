@@ -4,7 +4,8 @@ import sqlite3
 import cStringIO as StringIO
 import os
 
-from utils import removeFiles
+from sqlitedb import QUERY_TRIMMED_CSR_AS_SEQS
+from utils import removeFiles, CONSENSUS_NAME
 from cigar import expandCigar, compressCigar
 from samToBam import samToBam
 from threadpool import ProducerConsumer
@@ -12,7 +13,7 @@ from threadpool import ProducerConsumer
 
 def producer(info):
     fileidx = str(info[0])   
-    consensus = ">Consensus\n%s\n"%(str(info[2]))    
+    consensus = ">%(seqID)s\n%(seq)s\n"%dict(seqID=CONSENSUS_NAME, seq=str(info[2]))    
     seqs = [">%s\n%s"%(str(i), str(s)) for i, s in zip(info[3].split("\t"), info[4].split("\t"))]
     
     fastafile = StringIO.StringIO(consensus + "\n".join(seqs) )
@@ -104,23 +105,14 @@ def consumer(con, returndata):
     con.commit()
 
 
-def cleanSAM(args):
-    con = sqlite3.connect(args.database, check_same_thread=False)
-    con.execute("""PRAGMA foreign_keys = ON;""")
-    con.execute("""CREATE TABLE IF NOT EXISTS trimmed_inferSAM(id INTEGER PRIMARY KEY, fileID INTEGER, sam TEXT, bam BLOB, bamidx BLOB, FOREIGN KEY(fileID) REFERENCES files(id));""")
-    con.execute("""CREATE INDEX IF NOT EXISTS trimmed_infersam_fileid_idx ON trimmed_inferSAM(fileID ASC);""")
-    con.commit()
-
+def cleanSAM(args, con):
     curs = con.cursor()  
     curs.execute("""SELECT A.fileID, A.positions, B.sequence, C.SEQS, C.IDs, D.bam, D.bamidx 
                     FROM trimmed_logs AS A 
                          JOIN trimmed_consensus AS B ON (A.fileID = B.fileID) 
-                         JOIN (SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS 
-                               FROM trimmed_csr GROUP BY fileID) AS C ON (C.fileID = A.fileID) 
-                         JOIN inferSAM AS D ON (D.fileID = A.fileID)""")  
+                         JOIN (%(trimmed_csr_seqs)s) AS C ON (C.fileID = A.fileID) 
+                         JOIN inferSAM AS D ON (D.fileID = A.fileID)"""%dict( trimmed_csr_seqs = QUERY_TRIMMED_CSR_AS_SEQS) )  
 
     rows = ( (r[0], r[1], r[2], r[3], r[4], bytearray(r[5]), bytearray(r[6]),) for r in curs)   
     worker = ProducerConsumer(args, args.threads, producer, consumer)
     worker.run(con, rows)
-    con.commit()
-    con.close()
