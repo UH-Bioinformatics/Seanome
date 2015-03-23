@@ -166,6 +166,7 @@ def processMultiple(args):
     bamname, bamidxname = samToBam(open(samname).read(), prefix, False)
     removeFiles([samname])    
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
