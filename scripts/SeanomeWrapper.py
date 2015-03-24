@@ -19,44 +19,44 @@ CHILD_SCRIPT="%s_child_%s_step_%s.sh"
 CHILD_RUNNER="""child_runner_script_%s.sh"""
 
 def printPearLine(oscript):
-   genericBlock(oscript, """pear -f '${input_forward_path}' -r '${input_reverse_path}' -o ${short_name} -j ${THREADS} """)
+   genericBlock(oscript, """pear -f ${input_forward_path} -r ${input_reverse_path} -o ${short_name} -j ${THREADS} """)
 
 
 def printQualFilterAndMerge(oscript, threads):
    command = """fastq_quality_filter -q 20 -p 75 -i ${short_name}.%(type)s.fastq -o ${short_name}.%(type)s.cleaned.fastq -Q 33 """
    if threads >= 3:
       print >> oscript, """pidArr=()"""
-      print >> oscript, """date; echo "START: Quality filter"""
+      print >> oscript, """echo -e "\n"; date; echo -e "START: Quality filter" """
 
-      print >> oscript, """date; echo "%s" """%(command%dict(type="assembled"))
+      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="assembled"))
       print >> oscript, """%s &"""%(command%dict(type="assembled"))
       print >> oscript, """pidArr+=($!)"""
 
-      print >> oscript, """date; echo "%s" """%(command%dict(type="unassembled.forward"))
+      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.forward"))
       print >> oscript, """%s &"""%(command%dict(type="unassembled.forward"))
       print >> oscript, """pidArr+=($!)"""
 
-      print >> oscript, """date; echo "%s" """%(command%dict(type="unassembled.reverse"))
+      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.reverse"))
       print >> oscript, """%s &"""%(command%dict(type="unassembled.reverse"))
       print >> oscript, """pidArr+=($!)"""
       print >> oscript, """wait ${pidArr[@]}"""
-      print >> oscript, """date; echo "END: Quality filter"\n"""
+      print >> oscript, """echo -e "\n"; date; echo -e "END: Quality filter"\n"""
 
    elif threads == 2:
       print >> oscript, """pidArr=()"""
-      print >> oscript, """date; echo "START: Quality filter"""
-      print >> oscript, """date; echo "%s" """%(command%dict(type="assembled"))
+      print >> oscript, """echo -e "\n"; date; echo -e "START: Quality filter" """
+      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="assembled"))
       print >> oscript, """%s &"""%(command%dict(type="assembled"))
       print >> oscript, """pidArr+=($!)"""
 
-      print >> oscript, """date; echo "%s" """%(command%dict(type="unassembled.forward"))
+      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.forward"))
       print >> oscript, """%s &"""%(command%dict(type="unassembled.forward"))
       print >> oscript, """pidArr+=($!)"""
       print >> oscript, """wait ${pidArr[@]}"""
 
-      print >> oscript, """date; echo "%s" """%(command%dict(type="unassembled.reverse"))
+      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.reverse"))
       print >> oscript, """%s"""%(command%dict(type="unassembled.reverse"))
-      print >> oscript, """date; echo "END: Quality filter"\n"""
+      print >> oscript, """echo -e "\n"; date; echo -e "END: Quality filter"\n"""
 
    else:
       genericBlock(oscript, """%s"""%(command%dict(type="assembled")))
@@ -64,25 +64,25 @@ def printQualFilterAndMerge(oscript, threads):
       genericBlock(oscript, """%s"""%(command%dict(type="unassembled.reverse")))
 
    genericBlock(oscript, """cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.forward.cleaned.fastq  ${short_name}.unassembled.reverse.cleaned.fastq > ${short_name}.fastq""")
-   print >> oscript, """merged_fastq='${short_name}.fastq'"""
-   print >> oscript, """merged_fasta='${short_name}.fasta'"""
+   print >> oscript, """merged_fastq="${short_name}.fastq" """
+   print >> oscript, """merged_fasta="${short_name}.fasta" """
 
 
 def renameFastq(oscript, addPrefix):
    if not addPrefix:
-      print >> oscript, """date; echo "START fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\n"; date; echo -e "START fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
       print >> oscript, """fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}"""
-      print >> oscript, """date; echo "END fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\n"; date; echo -e "END fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
    else:
-      print >> oscript, """date; echo "START fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\n"; date; echo -e "START fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
       print >> oscript, """fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}"""
-      print >> oscript, """date; echo "END fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\n"; date; echo -e "END fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
 
 
 def genericBlock(oscript, line):
-   print >> oscript, """date; echo "START %s" """%(line)
+   print >> oscript, """echo -e "\n"; date; echo -e "START %s" """%(line)
    print >> oscript, line
-   print >> oscript, """date; echo "END %s"\n"""%(line)
+   print >> oscript, """echo -e "\n"; date; echo -e "END %s"\n"""%(line)
 
 
 
@@ -111,16 +111,17 @@ def buildCommonStepOne(args, oscript, pairs, ident, threads, prefix = False):
    printQualFilterAndMerge(oscript, threads)
    renameFastq(oscript, prefix)
 
-def commonMainScript(o, args, threads, clustered):
+def commonMainScript(o, args, threads, clustered, basic = False):
    print >> o, "#!/bin/bash"
    print >> o , "OLDDIR=`pwd`"
    print >> o, "THREADS=%s"%(threads) 
    print >> o, "DB_NAME='%s'\n"%(args.database) 
-   print >> o, "mkdir -p %s"%(args.workdir)	
-   print >> o, "cd %s\n"%(args.workdir)	      
-   print >> o, "mkdir csr"
-   if clustered:
-      print >> o, "mkdir csr/cluster_bams"
+   if not basic:
+      print >> o, "mkdir -p %s"%(args.workdir)	
+      print >> o, "cd %s\n"%(args.workdir)	      
+      print >> o, "mkdir csr"
+      if clustered:
+         print >> o, "mkdir csr/cluster_bams"
 
 
 def buildChildRunner(args, children_scripts, ident, passalongs, multi):
@@ -176,9 +177,9 @@ def advanceNotice(o, args, name):
    minclust = "${minClustSize}"
    maxclust = "${maxClustSize}"
    if args.advance:
-      print >> o, """echo "Enter min cluster coverage for library %s, followed by [ENTER]:" """%(name)
+      print >> o, """echo -e "Enter min cluster coverage for library %s, followed by [ENTER]:" """%(name)
       print >> o, """read minsize"""
-      print >> o, """echo "Enter max cluster coverage for library %s, followed by [ENTER]:" """%(name)
+      print >> o, """echo -e "Enter max cluster coverage for library %s, followed by [ENTER]:" """%(name)
       print >> o, """read maxsize"""
       minclust = "${minsize}"
       maxclust = "${maxsize}"
@@ -249,7 +250,7 @@ def singleMergedInput(args, threads, passalongs):
       genericBlock(o, """cat %s > ${combined_name}.fastq """%( " " .join( [ """ "../%(ident)s/%(ident)s.fastq" """%dict(ident=d) for d in passalongs] ) ) )
       genericBlock(o, """seqtk seq -A ${combined_name}.fastq > ${combined_name}.fasta""")
       genericBlock(o, """vsearch --derep_fulllength  ${combined_name}.fasta -minseqlength 1 -output ${combined_name}.dedup.fasta -uc ${combined_name}.uc --threads ${THREADS}""")
-      genericBlock(o, """vsearch -maskfasta ${combined_name}.fasta --hardmask --output ${combined_name}.masked.fasta --threads ${THREADS}""")
+      genericBlock(o, """vsearch -maskfasta ${combined_name}.dedup.fasta --hardmask --output ${combined_name}.masked.fasta --threads ${THREADS}""")
       genericBlock(o, """vsearch -sortbylength ${combined_name}.masked.fasta --output ${combined_name}.masked.sorted.fasta --threads ${THREADS}""")
       genericBlock(o, """vsearch --cluster_smallmem ${combined_name}.masked.sorted.fasta --strand plus --id 0.95  --consout ${combined_name}_1.cons --msaout ${combined_name}_1.msa --userout ${combined_name}_1.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
       genericBlock(o, """muso.py  -t ${THREADS} -i1 ${combined_name}_1.msa -o1 ${combined_name}_mod_1.cons -i2 ${combined_name}_1.out -o2 ${combined_name}_mod_1.out -g 1 -m 3 -n 2000""")
@@ -291,7 +292,7 @@ def generateSingle(args):
       buildChildRunner(args, children_scripts, ident, passalongs, False)
       print >> o, "bash %s"%(CHILD_RUNNER%(1))
       print >> o, "bash %s"%(CHILD_RUNNER%(2))
-      print >> o, "bash %s"%(CHILD_RUNNER%(2))
+      print >> o, "bash %s"%(CHILD_RUNNER%(3))
       comboname = singleMergedInput(args, threads, passalongs)
       with open(CHILD_RUNNER%(3), "w") as oo:
          commonMainScript(oo, args, threads, False)
@@ -308,7 +309,6 @@ def generateSingle(args):
          genericBlock(oo, """make_sam_with_cons.py -u  ${combined_name}.mapping_to_cons -q ${combined_name}.fastq -c ${combined_name}_clean.ids -f ${combined_name}.final.contigs.masked -l %s -m %s single -d DB_NAME"""%(minclust, maxclust))
          genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
          genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
-   
       print >> o, "cd ${OLDDIR}"
 
 
@@ -320,8 +320,9 @@ if __name__ == "__main__":
 	parser.add_argument('-d', '--database', required = True, help = "Name of the seanome sqlite database" )
 	parser.add_argument('-t', '--threads',  required = False, default = 1, type = int, help = "total number of threads to utilize (default: 1)")
 	parser.add_argument('-j', '--jobs',  required = False, default = 1, type = int, help = "Number of jobs to run in parallel.  This will divide the number of threads, and undersubscribe in case of uneven division (default: 1)")
-	parser.add_argument('-w', '--workdir', required = False, default =".", help = "Output directory to run job in (deafult: current directory)")
+	#parser.add_argument('-w', '--workdir', required = False, default =".", help = "Output directory to run job in (deafult: current directory)")
         parser.add_argument("-a", "--advance", action = "store_true", required = False, help = "generates coverage information and requires the use to provide input")
+        parser.set_defaults(workdir=".")
 
 
 	subparsers = parser.add_subparsers(dest='action', help='Available commands')
