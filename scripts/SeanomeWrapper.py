@@ -1,7 +1,10 @@
+#!/usr/bin/python
+import sys
 import os
 import math
 import yaml
 import argparse
+
 #YAML FORMAT
 """
 libraries:
@@ -26,37 +29,37 @@ def printQualFilterAndMerge(oscript, threads):
    command = """fastq_quality_filter -q 20 -p 75 -i ${short_name}.%(type)s.fastq -o ${short_name}.%(type)s.cleaned.fastq -Q 33 """
    if threads >= 3:
       print >> oscript, """pidArr=()"""
-      print >> oscript, """echo -e "\n"; date; echo -e "START: Quality filter" """
+      print >> oscript, """echo -e "\\n"; date; echo -e "START: Quality filter" """
 
-      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="assembled"))
+      print >> oscript, """echo -e "\\n"; date; echo -e "%s" """%(command%dict(type="assembled"))
       print >> oscript, """%s &"""%(command%dict(type="assembled"))
       print >> oscript, """pidArr+=($!)"""
 
-      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.forward"))
+      print >> oscript, """echo -e "\\n"; date; echo -e "%s" """%(command%dict(type="unassembled.forward"))
       print >> oscript, """%s &"""%(command%dict(type="unassembled.forward"))
       print >> oscript, """pidArr+=($!)"""
 
-      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.reverse"))
+      print >> oscript, """echo -e "\\n"; date; echo -e "%s" """%(command%dict(type="unassembled.reverse"))
       print >> oscript, """%s &"""%(command%dict(type="unassembled.reverse"))
       print >> oscript, """pidArr+=($!)"""
       print >> oscript, """wait ${pidArr[@]}"""
-      print >> oscript, """echo -e "\n"; date; echo -e "END: Quality filter"\n"""
+      print >> oscript, """echo -e "\\n"; date; echo -e "END: Quality filter"\\n"""
 
    elif threads == 2:
       print >> oscript, """pidArr=()"""
-      print >> oscript, """echo -e "\n"; date; echo -e "START: Quality filter" """
-      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="assembled"))
+      print >> oscript, """echo -e "\\n"; date; echo -e "START: Quality filter" """
+      print >> oscript, """echo -e "\\n"; date; echo -e "%s" """%(command%dict(type="assembled"))
       print >> oscript, """%s &"""%(command%dict(type="assembled"))
       print >> oscript, """pidArr+=($!)"""
 
-      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.forward"))
+      print >> oscript, """echo -e "\\n"; date; echo -e "%s" """%(command%dict(type="unassembled.forward"))
       print >> oscript, """%s &"""%(command%dict(type="unassembled.forward"))
       print >> oscript, """pidArr+=($!)"""
       print >> oscript, """wait ${pidArr[@]}"""
 
-      print >> oscript, """echo -e "\n"; date; echo -e "%s" """%(command%dict(type="unassembled.reverse"))
+      print >> oscript, """echo -e "\\n"; date; echo -e "%s" """%(command%dict(type="unassembled.reverse"))
       print >> oscript, """%s"""%(command%dict(type="unassembled.reverse"))
-      print >> oscript, """echo -e "\n"; date; echo -e "END: Quality filter"\n"""
+      print >> oscript, """echo -e "\\n"; date; echo -e "END: Quality filter"\\n"""
 
    else:
       genericBlock(oscript, """%s"""%(command%dict(type="assembled")))
@@ -70,23 +73,23 @@ def printQualFilterAndMerge(oscript, threads):
 
 def renameFastq(oscript, addPrefix):
    if not addPrefix:
-      print >> oscript, """echo -e "\n"; date; echo -e "START fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\\n"; date; echo -e "START fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
       print >> oscript, """fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}"""
-      print >> oscript, """echo -e "\n"; date; echo -e "END fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\\n"; date; echo -e "END fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
    else:
-      print >> oscript, """echo -e "\n"; date; echo -e "START fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\\n"; date; echo -e "START fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
       print >> oscript, """fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}"""
-      print >> oscript, """echo -e "\n"; date; echo -e "END fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\\n"; date; echo -e "END fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
 
 
 def genericBlock(oscript, line):
-   print >> oscript, """echo -e "\n"; date; echo -e "START %s" """%(line)
+   print >> oscript, """echo -e "\\n"; date; echo -e "START %s" """%(line)
    print >> oscript, line
-   print >> oscript, """echo -e "\n"; date; echo -e "END %s"\n"""%(line)
+   print >> oscript, """echo -e "\\n"; date; echo -e "END %s"\\n"""%(line)
 
 
 
-def buildMakeSamScript(childname, ident):
+def buildMakeSamScript(childname, ident, threads):
    with open(childname, "w") as oscript:
       print >> oscript, "#!/bin/bash"
       print >> oscript, """: ${1?"Usage: $0 min_coverage max_coverage"}"""
@@ -95,8 +98,13 @@ def buildMakeSamScript(childname, ident):
       print >> oscript, """maxClustSize=${2}"""
       print >> oscript , """cd "%s" """%(ident)
       genericBlock(oscript, """make_sam_with_cons.py -u  %(short)s.mapping_to_cons -q  %(short)s.fastq -c  %(short)s_clean.ids -f  %(short)s.final.contigs.masked -l ${minClustSize} -m ${maxClustSize} multiple -o "%(short)s" """%dict(short = ident) )
+
+      genericBlock(oscript, """jellyfish count -m 21 -s 512M -t %(threads)s -C %(ref)s -o %(short)s.jelly"""%dict(threads=threads, ref="%s_pseudo_ref_parts.fasta"%(ident), short=ident ) )
+      genericBlock(oscript, """jellyfish dump  %(short)s.jelly > %(short)s.kmer.counts; rm %(short)s.jelly"""%dict(short=ident) )
+      genericBlock(oscript, """filter_kmer_counts.py %(short)s.kmer.counts %(short)s 2; rm %(short)s.kmer.counts"""%dict(short=ident))
+
       print >> oscript, """cd .."""
-      return ["%s.bam"%(ident), "%s.bam,bai"%(ident), "%s_pseudo_ref_parts.fasta"%(ident), "%s_pseudo_ref.fasta"%(ident), ]
+      return ["%s.bam"%(ident), "%s.bam.bai"%(ident), "%s_pseudo_ref_parts.fasta"%(ident), "%s_pseudo_ref.fasta"%(ident), "%s_kmer.filter"%(ident) ]
 
 
 def buildCommonStepOne(args, oscript, pairs, ident, threads, prefix = False):
@@ -124,7 +132,7 @@ def commonMainScript(o, args, threads, clustered, basic = False):
          print >> o, "mkdir csr/cluster_bams"
 
 
-def buildChildRunner(args, children_scripts, ident, passalongs, multi):
+def buildChildRunner(args, children_scripts, ident, passalongs, multi, threads = 1):
    o = open(CHILD_RUNNER%(1), "w")
    print >> o, "#!/bin/bash"
    if multi:
@@ -150,7 +158,7 @@ def buildChildRunner(args, children_scripts, ident, passalongs, multi):
       if multi:
          for c, d in enumerate(passalongs):
             childname = CHILD_SCRIPT%(d[0], c, 2)
-            d.extend(buildMakeSamScript(childname, ident))
+            d.extend(buildMakeSamScript(childname, ident, threads))
             if c % args.jobs == 0:
                if c != 0:
                   print >> o, "wait ${pidArr[@]}"
@@ -163,7 +171,7 @@ def buildChildRunner(args, children_scripts, ident, passalongs, multi):
       if multi:
          for c, d in enumerate(passalongs):
             childname = CHILD_SCRIPT%(d[0], c, 2)
-            d.extend(buildMakeSamScript(childname, ident))
+            d.extend(buildMakeSamScript(childname, ident, threads))
             minclust, maxclust = advanceNotice(oo, args, d[0])
             genericBlock(oo, """bash %s %s %s"""%(childname, minclust, maxclust))
 
@@ -217,27 +225,60 @@ def generateMulti(args):
          genericBlock(oscript, """maskSeqs.py -i ${short_name}_bad.ids  -f ${short_name}.final.contigs.masked -o ${short_name}.final.contigs.masked_ && mv ${short_name}.final.contigs.masked_ ${short_name}.final.contigs.masked""")
          genericBlock(oscript, """grep ">" ${short_name}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${short_name}_clean.ids""")         
          genericBlock(oscript, """coverageInformation.py -s "${short_name}"  -c ${short_name}_clean.ids -m ${short_name}.mapping_to_cons""")
+
          print >> oscript, """cd .."""
 
-   threads = args.threads
+   buildChildRunner(args, children_scripts, ident, passalongs, True, threads)
+   threads = args.threads   
    with open(MAIN_SCRIPT, "w") as o:
       commonMainScript(o, args, threads, True)
-      buildChildRunner(args, children_scripts, ident, passalongs, True)
+   
+
       print >> o, "bash %s"%(CHILD_RUNNER%(1))
       print >> o, "bash %s"%(CHILD_RUNNER%(2))
-      print >> o, "cd csr"
-      for d in passalongs:
-	 genericBlock(o, """mv ../%(parent)s/%(bam)s ../%(parent)s/%(bamidx)s cluster_bams/"""%dict(parent = d[0], bam = d[1], bamidx = d[2]) )
-      seedA, seedB= passalongs[:2]	
-      genericBlock(o, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 ../%(parentA)s/%(refA)s -n1 %(parentA)s -i2 ../%(parentB)s/%(refB)s -n2 %(parentB)s -l 150 -s 0.94"""%dict(parentA = seedA[0], refA=seedA[3], parentB = seedB[0], refB=seedB[3]))	
-      for d in passalongs[2:]:
-	 genericBlock(o, """Seanome.py -t ${THREADS}  -d ${DB_NAME} find_csr -g ../%(parent)s/%(ref)s -l 150 -s 0.94"""%dict(parent = d[0], ref = d[4]))			
-      genericBlock(o, """Seanome.py -t ${THREADS} -d ${DB_NAME} consensus""")
-      genericBlock(o, """Seanome.py -t ${THREADS} -d ${DB_NAME} inferSAM  -s cluster_bams""")
-      genericBlock(o, """Seanome.py -t ${THREADS} -d ${DB_NAME} trimAL""")
-      genericBlock(o, """Seanome.py -t ${THREADS} -d ${DB_NAME} cleanSAM""")
-      genericBlock(o, """Seanome.py -t ${THREADS} -d ${DB_NAME} generateVCF""")
-      genericBlock(o, """Seanome.py -t ${THREADS} -d ${DB_NAME} updateVCF""")
+      print >> o, "bash %s"%(CHILD_RUNNER%(3))
+      with open(CHILD_RUNNER%(3), "w") as oo:
+         commonMainScript(oo, args, threads, True)
+         print >> oo, "cd csr"
+         for d in passalongs:
+            genericBlock(oo, """mv ../%(parent)s/%(bam)s ../%(parent)s/%(bamidx)s cluster_bams/"""%dict(parent = d[0], bam = d[1], bamidx = d[2]) )
+            
+         print >> oo, """mkdir kmer_counts"""
+         for d in passalongs:
+            genericBlock(oo, """mv ../%(parent)s/%(cnt)s kmer_counts/"""%dict(parent = d[0], cnt = d[5]) )         
+         # TODO: Need to insert an ordering function gives us the order in which seeds and and other things are processed...
+         if len(passalongs) > 2:
+            genericBlock(oo, """findBestOrder_quick.py kmer_counts _kmer.filter search.order""")
+            print >> oo, "declare -A mapping;"
+            for d in passalongs:
+               print >> oo, """mapping["%s"]="%s" """%(d[0], "../%s/%s"%(d[0], d[3]))
+               
+            print >> oo, """ordering=()"""
+            print >> oo, """i=0"""
+            print >> oo, """while read line"""
+            print >> oo, """do"""
+            print >> oo, """ ordering[$i]=line"""
+            print >> oo, """ i=$(($i+1))"""
+            print >> oo, """done < search.order"""
+               
+            genericBlock(oo, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 $mapping[${ordering[0]}] -n1 ${ordering[0]} -i2 $mapping[${ordering[1]}] -n2 ${ordering[1]}  -l 150 -s 0.94""")
+            print >> oo, """for i in {2..%s}"""%((len(passalongs)-1))
+            print >> oo, """do"""
+            genericBlock(oo, """ Seanome.py -t ${THREADS}  -d ${DB_NAME} find_csr -g $mapping[${ordering[$i]}] -l 150 -s 0.94"""%dict(parent = d[0], ref = d[4]))
+            print >>oo, """done"""
+         elif len(passalongs) == 2:
+            seedA, seedB= passalongs      
+            genericBlock(o, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 ../%(parentA)s/%(refA)s -n1 %(parentA)s -i2 ../%(parentB)s/%(refB)s -n2 %(parentB)s -l 150 -s 0.94"""%dict(parentA = seedA[0], refA=seedA[3], parentB = seedB[0], refB=seedB[3])) 
+         else:
+            print >> sys.stderr, "Only 1 library is present.. Require at least 1 libraries!"
+            sys.exit(0)
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} consensus""")
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} inferSAM  -s cluster_bams""")
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} trimAL""")
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} cleanSAM""")
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} generateVCF""")
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} updateVCF""")
+         print >> oo, """cd .."""
       print >> o, "cd ${OLDDIR}"
 		
 
@@ -286,10 +327,11 @@ def generateSingle(args):
          buildCommonStepOne(args, oscript, pairs, ident, threads, True)
 	 print >> oscript, """cd .."""
       passalongs.append( ident  )
+
+   buildChildRunner(args, children_scripts, ident, passalongs, False, threads)
    threads = args.threads
    with open(MAIN_SCRIPT, "w") as o:
       commonMainScript(o, args, threads, False)
-      buildChildRunner(args, children_scripts, ident, passalongs, False)
       print >> o, "bash %s"%(CHILD_RUNNER%(1))
       print >> o, "bash %s"%(CHILD_RUNNER%(2))
       print >> o, "bash %s"%(CHILD_RUNNER%(3))
