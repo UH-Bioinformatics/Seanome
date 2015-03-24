@@ -15,7 +15,7 @@ from utils.makeCons import generateConsensusSequences
 from utils.trimall import runTrimAL
 from utils.cleanSAM import cleanSAM
 from utils.vcf_generator import generateVCFfiles
-from utils.modvcf import updateVCFfiles
+from utils.vcfmod import updateVCFfiles
 
 #https://stackoverflow.com/questions/1889597/deleting-directory-in-python/1889686#1889686
 # to handle the case of read only files in the remove tree for shutil.rmtree

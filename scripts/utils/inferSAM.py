@@ -46,7 +46,7 @@ def inferSAM(args, con):
     curs.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS 
                     FROM ( %(csr_as_seqeuences)s ) AS A 
                     JOIN consensus AS B ON (A.fileID = B.fileID);"""%sict(csr_as_seqeuences = QUERY_CSR_AS_SEQS) )
-    rows = (  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = CONSENSUS_NAME, seq[1]), "\n".join([">%s\n%s"%(i,s,)        for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
+    rows = (  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = CONSENSUS_NAME, seq = seq[1]), "\n".join([">%s\n%s"%(i,s,)        for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
               itertools.izip(curs, itertools.repeat(str(args.split_sam_dir)) )    )
 
     worker = ProducerConsumer(args, args.threads, inferSAMProducer, inferSAMConsumer)

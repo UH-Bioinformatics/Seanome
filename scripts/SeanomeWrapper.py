@@ -101,7 +101,7 @@ def buildMakeSamScript(childname, ident, threads):
 
       genericBlock(oscript, """jellyfish count -m 21 -s 512M -t %(threads)s -C %(ref)s -o %(short)s.jelly"""%dict(threads=threads, ref="%s_pseudo_ref_parts.fasta"%(ident), short=ident ) )
       genericBlock(oscript, """jellyfish dump  %(short)s.jelly > %(short)s.kmer.counts; rm %(short)s.jelly"""%dict(short=ident) )
-      genericBlock(oscript, """filter_kmer_counts.py %(short)s.kmer.counts %(short)s 2; rm %(short)s.kmer.counts"""%dict(short=ident))
+      genericBlock(oscript, """filter_kmer_counts.py %(short)s.kmer.counts %(short)s 2; rm %(short)s.kmer.counts %(short)s_kmer.filter.tmp"""%dict(short=ident))
 
       print >> oscript, """cd .."""
       return ["%s.bam"%(ident), "%s.bam.bai"%(ident), "%s_pseudo_ref_parts.fasta"%(ident), "%s_pseudo_ref.fasta"%(ident), "%s_kmer.filter"%(ident) ]
@@ -141,9 +141,13 @@ def buildChildRunner(args, children_scripts, ident, passalongs, multi, threads =
       print >> oo, "minClustSize=3"
       print >> oo, "maxClustSize=200"
       print >> oo, """if [ -z "$1" ]; then """
+      print >> oo, "minClustSize=3"
+      print >> oo, "else"
       print >> oo, "minClustSize=${1}"
       print >> oo, """fi"""
       print >> oo, """if [ -z "$2" ]; then """
+      print >> oo, "maxClustSize=200"
+      print >> oo, "else"
       print >> oo, "maxClustSize=${2}"
       print >> oo, """fi"""
 
@@ -268,7 +272,7 @@ def generateMulti(args):
             print >>oo, """done"""
          elif len(passalongs) == 2:
             seedA, seedB= passalongs      
-            genericBlock(o, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 ../%(parentA)s/%(refA)s -n1 %(parentA)s -i2 ../%(parentB)s/%(refB)s -n2 %(parentB)s -l 150 -s 0.94"""%dict(parentA = seedA[0], refA=seedA[3], parentB = seedB[0], refB=seedB[3])) 
+            genericBlock(oo, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 ../%(parentA)s/%(refA)s -n1 %(parentA)s -i2 ../%(parentB)s/%(refB)s -n2 %(parentB)s -l 150 -s 0.94"""%dict(parentA = seedA[0], refA=seedA[3], parentB = seedB[0], refB=seedB[3])) 
          else:
             print >> sys.stderr, "Only 1 library is present.. Require at least 1 libraries!"
             sys.exit(0)
@@ -342,9 +346,13 @@ def generateSingle(args):
          print >> oo, "minClustSize=3"
          print >> oo, "maxClustSize=200"
          print >> oo, """if [ -z "$1" ]; then """
+         print >> oo, "minClustSize=3"
+         print >> oo, "else"
          print >> oo, "minClustSize=${1}"
          print >> oo, """fi"""
          print >> oo, """if [ -z "$2" ]; then """
+         print >> oo, "maxClustSize=200"
+         print >> oo, "else"
          print >> oo, "maxClustSize=${2}"
          print >> oo, """fi"""
          minclust, maxclust = advanceNotice(oo, args, "${combined_name}")   
