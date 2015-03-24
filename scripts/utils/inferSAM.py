@@ -1,11 +1,12 @@
 import os
 import copy
-
+import itertools
 import pysam
 from Bio import SeqIO
 from Bio.Seq import Seq
 import re
 import sys
+import sqlite3
 import cStringIO as StringIO
 import subprocess
 from collections import Counter
@@ -41,12 +42,11 @@ def inferSAMConsumer(con, returndata):
 
 
 def inferSAM(args, con):
-    con = sqlite3.connect(args.database, check_same_thread=False)
     curs = con.cursor()
     curs.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS 
                     FROM ( %(csr_as_seqeuences)s ) AS A 
-                    JOIN consensus AS B ON (A.fileID = B.fileID);"""%sict(csr_as_seqeuences = QUERY_CSR_AS_SEQS) )
-    rows = (  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = CONSENSUS_NAME, seq = seq[1]), "\n".join([">%s\n%s"%(i,s,)        for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
+                    JOIN consensus AS B ON (A.fileID = B.fileID);"""%dict(csr_as_seqeuences = QUERY_CSR_AS_SEQS) )
+    rows = (  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = CONSENSUS_NAME, seq = r[1]), "\n".join([">%s\n%s"%(i,s,)        for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
               itertools.izip(curs, itertools.repeat(str(args.split_sam_dir)) )    )
 
     worker = ProducerConsumer(args, args.threads, inferSAMProducer, inferSAMConsumer)

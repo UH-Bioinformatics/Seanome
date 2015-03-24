@@ -15,7 +15,7 @@ def buildsqlitedb(dbname, ismulti = True):
 
 
 def buildSingleDB(dbname):
-    con = sqlite3.connect(dbname)
+    con = sqlite3.connect(dbname, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
 
     con.execute("""CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, name TEXT);""")
@@ -41,7 +41,7 @@ def buildSingleDB(dbname):
 
 
 def buildMultieDb(dbname):
-    con = sqlite3.connect(dbname)
+    con = sqlite3.connect(dbname, check_same_thread=False)
     con.execute("""PRAGMA foreign_keys = ON;""")
 
     con.execute("""CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, name TEXT);""")

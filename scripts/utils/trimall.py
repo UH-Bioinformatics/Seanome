@@ -16,7 +16,7 @@ def producer(info):
     consensus = str(info[1])
     seqs = [">%s\n%s"%(str(i), str(s)) for i, s in zip(info[2].split("\t"), info[3].split("\t"))]
     with open(inputdata, "w") as o:
-        print >> o, ">%(seqID)s\n%(seq)s"%(CONSENSUS_NAME, consensus)
+        print >> o, ">%(seqID)s\n%(seq)s"%dict(seqID=CONSENSUS_NAME, seq=consensus)
         print >> o, "%s"%("\n".join(seqs))
     cline = """trimal -in %s  -fasta -gt 0.8 -st 0.001 -cons 60 -colnumbering"""%(inputdata)
     child = subprocess.Popen(str(cline),
