@@ -251,7 +251,7 @@ def generateMulti(args):
          for d in passalongs:
             genericBlock(oo, """mv ../%(parent)s/%(cnt)s kmer_counts/"""%dict(parent = d[0], cnt = d[5]) )         
          # TODO: Need to insert an ordering function gives us the order in which seeds and and other things are processed...
-         if len(passalongs) > 2:
+         if len(passalongs) >= 2:
             genericBlock(oo, """findBestOrder_quick.py kmer_counts _kmer.filter search.order""")
             print >> oo, "declare -A mapping;"
             for d in passalongs:
@@ -264,17 +264,14 @@ def generateMulti(args):
             print >> oo, """ ordering[$i]=line"""
             print >> oo, """ i=$(($i+1))"""
             print >> oo, """done < search.order"""
-               
             genericBlock(oo, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 $mapping[${ordering[0]}] -n1 ${ordering[0]} -i2 $mapping[${ordering[1]}] -n2 ${ordering[1]}  -l 150 -s 0.94""")
-            print >> oo, """for i in {2..%s}"""%((len(passalongs)-1))
-            print >> oo, """do"""
-            genericBlock(oo, """ Seanome.py -t ${THREADS}  -d ${DB_NAME} find_csr -g $mapping[${ordering[$i]}] -l 150 -s 0.94"""%dict(parent = d[0], ref = d[4]))
-            print >>oo, """done"""
-         elif len(passalongs) == 2:
-            seedA, seedB= passalongs      
-            genericBlock(oo, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 ../%(parentA)s/%(refA)s -n1 %(parentA)s -i2 ../%(parentB)s/%(refB)s -n2 %(parentB)s -l 150 -s 0.94"""%dict(parentA = seedA[0], refA=seedA[3], parentB = seedB[0], refB=seedB[3])) 
+            if len(passalongs) > 2:
+               print >> oo, """for i in {2..%s}"""%((len(passalongs)-1))
+               print >> oo, """do"""
+               genericBlock(oo, """ Seanome.py -t ${THREADS}  -d ${DB_NAME} find_csr -g $mapping[${ordering[$i]}] -l 150 -s 0.94"""%dict(parent = d[0], ref = d[4]))
+               print >>oo, """done"""
          else:
-            print >> sys.stderr, "Only 1 library is present.. Require at least 1 libraries!"
+            print >> sys.stderr, "Only 1 library is present.. Require at least 2 libraries!"
             sys.exit(0)
          genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} consensus""")
          genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} inferSAM  -s cluster_bams""")
