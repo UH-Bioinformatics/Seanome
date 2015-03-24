@@ -21,12 +21,28 @@ MAIN_SCRIPT="primary_script.sh"
 CHILD_SCRIPT="%s_child_%s_step_%s.sh"
 CHILD_RUNNER="""child_runner_script_%s.sh"""
 
+
+def clusterSizeHdr(o):
+   print >> o, "minClustSize=3"
+   print >> o, "maxClustSize=200"
+   print >> o, """if [ -z "$1" ]; then """
+   print >> o, "minClustSize=3"
+   print >> o, "else"
+   print >> o, "minClustSize=${1}"
+   print >> o, """fi"""
+   print >> o, """if [ -z "$2" ]; then """
+   print >> o, "maxClustSize=200"
+   print >> o, "else"
+   print >> o, "maxClustSize=${2}"
+   print >> o, """fi"""
+
+
 def printPearLine(oscript):
-   genericBlock(oscript, """pear -f ${input_forward_path} -r ${input_reverse_path} -o ${short_name} -j ${THREADS} """)
+   genericBlock(oscript, """pear -f ${input_forward_path} -r ${input_reverse_path} -o ${NAME} -j ${THREADS} """)
 
 
 def printQualFilterAndMerge(oscript, threads):
-   command = """fastq_quality_filter -q 20 -p 75 -i ${short_name}.%(type)s.fastq -o ${short_name}.%(type)s.cleaned.fastq -Q 33 """
+   command = """fastq_quality_filter -q 20 -p 75 -i ${NAME}.%(type)s.fastq -o ${NAME}.%(type)s.cleaned.fastq -Q 33 """
    if threads >= 3:
       print >> oscript, """pidArr=()"""
       print >> oscript, """echo -e "\\n"; date; echo -e "START: Quality filter" """
@@ -44,7 +60,6 @@ def printQualFilterAndMerge(oscript, threads):
       print >> oscript, """pidArr+=($!)"""
       print >> oscript, """wait ${pidArr[@]}"""
       print >> oscript, """echo -e "\\n"; date; echo -e "END: Quality filter"\\n"""
-
    elif threads == 2:
       print >> oscript, """pidArr=()"""
       print >> oscript, """echo -e "\\n"; date; echo -e "START: Quality filter" """
@@ -60,15 +75,14 @@ def printQualFilterAndMerge(oscript, threads):
       print >> oscript, """echo -e "\\n"; date; echo -e "%s" """%(command%dict(type="unassembled.reverse"))
       print >> oscript, """%s"""%(command%dict(type="unassembled.reverse"))
       print >> oscript, """echo -e "\\n"; date; echo -e "END: Quality filter"\\n"""
-
    else:
       genericBlock(oscript, """%s"""%(command%dict(type="assembled")))
       genericBlock(oscript, """%s"""%(command%dict(type="unassembled.forward")))
       genericBlock(oscript, """%s"""%(command%dict(type="unassembled.reverse")))
 
-   genericBlock(oscript, """cat ${short_name}.assembled.cleaned.fastq ${short_name}.unassembled.forward.cleaned.fastq  ${short_name}.unassembled.reverse.cleaned.fastq > ${short_name}.fastq""")
-   print >> oscript, """merged_fastq="${short_name}.fastq" """
-   print >> oscript, """merged_fasta="${short_name}.fasta" """
+   genericBlock(oscript, """cat ${NAME}.assembled.cleaned.fastq ${NAME}.unassembled.forward.cleaned.fastq  ${NAME}.unassembled.reverse.cleaned.fastq > ${NAME}.fastq""")
+   print >> oscript, """merged_fastq="${NAME}.fastq" """
+   print >> oscript, """merged_fasta="${NAME}.fasta" """
 
 
 def renameFastq(oscript, addPrefix):
@@ -77,16 +91,15 @@ def renameFastq(oscript, addPrefix):
       print >> oscript, """fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}"""
       print >> oscript, """echo -e "\\n"; date; echo -e "END fastq_rename ${merged_fastq} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
    else:
-      print >> oscript, """echo -e "\\n"; date; echo -e "START fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
-      print >> oscript, """fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}"""
-      print >> oscript, """echo -e "\\n"; date; echo -e "END fastq_rename ${merged_fastq} ${short_name} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """echo -e "\\n"; date; echo -e "START fastq_rename ${merged_fastq} ${NAME} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
+      print >> oscript, """fastq_rename ${merged_fastq} ${NAME} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}"""
+      print >> oscript, """echo -e "\\n"; date; echo -e "END fastq_rename ${merged_fastq} ${NAME} > ${merged_fastq}_ && mv ${merged_fastq}_ ${merged_fastq}" """
 
 
 def genericBlock(oscript, line):
    print >> oscript, """echo -e "\\n"; date; echo -e "START %s" """%(line)
    print >> oscript, line
    print >> oscript, """echo -e "\\n"; date; echo -e "END %s\\n" """%(line)
-
 
 
 def buildMakeSamScript(childname, ident, threads):
@@ -98,11 +111,9 @@ def buildMakeSamScript(childname, ident, threads):
       print >> oscript, """maxClustSize=${2}"""
       print >> oscript , """cd "%s" """%(ident)
       genericBlock(oscript, """make_sam_with_cons.py -u  %(short)s.mapping_to_cons -q  %(short)s.fastq -c  %(short)s_clean.ids -f  %(short)s.final.contigs.masked -l ${minClustSize} -m ${maxClustSize} multiple -o "%(short)s" """%dict(short = ident) )
-
       genericBlock(oscript, """jellyfish count -m 21 -s 512M -t %(threads)s -C %(ref)s -o %(short)s.jelly"""%dict(threads=threads, ref="%s_pseudo_ref_parts.fasta"%(ident), short=ident ) )
       genericBlock(oscript, """jellyfish dump  %(short)s.jelly > %(short)s.kmer.counts; rm %(short)s.jelly"""%dict(short=ident) )
       genericBlock(oscript, """filter_kmer_counts.py %(short)s.kmer.counts %(short)s 2; rm %(short)s.kmer.counts %(short)s_kmer.filter.tmp"""%dict(short=ident))
-
       print >> oscript, """cd .."""
       return ["%s.bam"%(ident), "%s.bam.bai"%(ident), "%s_pseudo_ref_parts.fasta"%(ident), "%s_pseudo_ref.fasta"%(ident), "%s_kmer.filter"%(ident) ]
 
@@ -111,13 +122,14 @@ def buildCommonStepOne(args, oscript, pairs, ident, threads, prefix = False):
    print >> oscript, "#!/bin/bash"
    print >> oscript, "input_forward_path='%s'"%(pairs[0]) 
    print >> oscript, "input_reverse_path='%s'"%(pairs[1]) 
-   print >> oscript, "short_name='%s'"%(ident) 
+   print >> oscript, "NAME='%s'"%(ident) 
    print >> oscript, "THREADS=%s\n"%(threads) 
-   print >> oscript, "mkdir ${short_name}"
-   print >> oscript, "cd ${short_name}"
+   print >> oscript, "mkdir ${NAME}"
+   print >> oscript, "cd ${NAME}"
    printPearLine(oscript)
    printQualFilterAndMerge(oscript, threads)
    renameFastq(oscript, prefix)
+
 
 def commonMainScript(o, args, threads, clustered, basic = False):
    print >> o, "#!/bin/bash"
@@ -132,25 +144,13 @@ def commonMainScript(o, args, threads, clustered, basic = False):
          print >> o, "mkdir csr/cluster_bams"
 
 
-def buildChildRunner(args, children_scripts, ident, passalongs, multi, threads = 1):
+def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
    o = open(CHILD_RUNNER%(1), "w")
    print >> o, "#!/bin/bash"
    if multi:
       oo = open(CHILD_RUNNER%(2), "w") 
       print >> oo, "#!/bin/bash"
-      print >> oo, "minClustSize=3"
-      print >> oo, "maxClustSize=200"
-      print >> oo, """if [ -z "$1" ]; then """
-      print >> oo, "minClustSize=3"
-      print >> oo, "else"
-      print >> oo, "minClustSize=${1}"
-      print >> oo, """fi"""
-      print >> oo, """if [ -z "$2" ]; then """
-      print >> oo, "maxClustSize=200"
-      print >> oo, "else"
-      print >> oo, "maxClustSize=${2}"
-      print >> oo, """fi"""
-
+      clusterSizeHdr(oo)
    if args.jobs != 1:
       for c, cname in enumerate(children_scripts):
          if c % args.jobs == 0:
@@ -162,7 +162,7 @@ def buildChildRunner(args, children_scripts, ident, passalongs, multi, threads =
       if multi:
          for c, d in enumerate(passalongs):
             childname = CHILD_SCRIPT%(d[0], c, 2)
-            d.extend(buildMakeSamScript(childname, ident, threads))
+            d.extend(buildMakeSamScript(childname, d[0], threads))
             if c % args.jobs == 0:
                if c != 0:
                   print >> o, "wait ${pidArr[@]}"
@@ -175,10 +175,9 @@ def buildChildRunner(args, children_scripts, ident, passalongs, multi, threads =
       if multi:
          for c, d in enumerate(passalongs):
             childname = CHILD_SCRIPT%(d[0], c, 2)
-            d.extend(buildMakeSamScript(childname, ident, threads))
+            d.extend(buildMakeSamScript(childname, d[0], threads))
             minclust, maxclust = advanceNotice(oo, args, d[0])
             genericBlock(oo, """bash %s %s %s"""%(childname, minclust, maxclust))
-
    o.close()
    if multi:
       oo.close()
@@ -197,6 +196,45 @@ def advanceNotice(o, args, name):
       maxclust = "${maxsize}"
    return minclust, maxclust
 
+
+def clusterSection(oscript):
+   genericBlock(oscript, """vsearch -sortbylength ${NAME}.masked.fasta --output ${NAME}.masked.sorted.fasta --threads ${THREADS}""")
+   genericBlock(oscript, """vsearch --cluster_smallmem ${NAME}.masked.sorted.fasta --strand plus --id 0.95  --consout ${NAME}_1.cons --msaout ${NAME}_1.msa --userout ${NAME}_1.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
+   genericBlock(oscript, """muso.py  -t ${THREADS} -i1 ${NAME}_1.msa -o1 ${NAME}_mod_1.cons -i2 ${NAME}_1.out -o2 ${NAME}_mod_1.out -g 1 -m 3 -n 2000""")
+   genericBlock(oscript, """vsearch -sortbylength ${NAME}_mod_1.cons --output ${NAME}_mod_1.sorted.fasta -threads ${THREADS}""")
+   genericBlock(oscript, """vsearch --cluster_smallmem ${NAME}_mod_1.sorted.fasta --strand both --id 0.95  --consout ${NAME}_2.cons --msaout ${NAME}_2.msa --userout ${NAME}_2.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
+   genericBlock(oscript, """muso.py  -t ${THREADS} -i1 ${NAME}_2.msa -o1 ${NAME}.final.contigs -i2 ${NAME}_2.out -o2 ${NAME}.final.out -g 2 -m 3 -n 2000""")
+   genericBlock(oscript, """trackOverlaps.py -i1 ${NAME}_mod_1.out  -i2 ${NAME}.final.out  -o ${NAME}.mapping_to_cons""")
+
+
+def maskingSection(oscript):
+   genericBlock(oscript, """vsearch -maskfasta ${NAME}.final.contigs -hardmask  -output ${NAME}.final.contigs.masked -qmask dust -threads ${THREADS}""")
+   genericBlock(oscript, """sed -i -E '/>/!s/[acgt]/N/g' ${NAME}.final.contigs.masked""")
+   genericBlock(oscript, """grep -v '>'  ${NAME}.final.contigs.masked |  sed -e "1i>${NAME}" | seqret stdin ${NAME}.temp.pseudo.fasta""")
+   genericBlock(oscript, """build_lmer_table -l 12 -sequence ${NAME}.temp.pseudo.fasta -freq freqs_${NAME}""")
+   genericBlock(oscript, """RepeatScout -sequence ${NAME}.temp.pseudo.fasta -output repeats_${NAME}.fa -freq freqs_${NAME} -l 12""")
+   genericBlock(oscript, """usearch -usearch_local repeats_${NAME}.fa  -db ${NAME}.final.contigs.masked -id 0.80 -strand both -userfields query+target+id+qcov+tcov+qlo+qhi+tlo+thi -userout ${NAME}_bad.ids -query_cov 0.75  -threads ${THREADS} --maxaccepts 0 --maxrejects 0""")
+   genericBlock(oscript, """maskSeqs.py -i ${NAME}_bad.ids  -f ${NAME}.final.contigs.masked -o ${NAME}.final.contigs.masked_ && mv ${NAME}.final.contigs.masked_ ${NAME}.final.contigs.masked""")
+   genericBlock(oscript, """grep ">" ${NAME}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${NAME}_clean.ids""")         
+
+
+def singleMergedInput(args, threads, passalongs):
+   comboname = "_".join(passalongs)
+   with open(CHILD_RUNNER%(2), "w") as o:
+      commonMainScript(o, args, threads, False)
+      print >> o, "cd csr"
+      print >> o, """NAME="%s" """%(comboname)
+      genericBlock(o, """cat %s > ${NAME}.fastq """%( " " .join( [ """ "../%(ident)s/%(ident)s.fastq" """%dict(ident=d) for d in passalongs] ) ) )
+      genericBlock(o, """seqtk seq -A ${NAME}.fastq > ${NAME}.fasta""")
+      genericBlock(o, """vsearch --derep_fulllength  ${NAME}.fasta -minseqlength 1 -output ${NAME}.dedup.fasta -uc ${NAME}.uc --threads ${THREADS}""")
+      genericBlock(o, """vsearch -maskfasta ${NAME}.dedup.fasta --hardmask --output ${NAME}.masked.fasta --threads ${THREADS}""")
+      clusterSection(o)
+      genericBlock(o, """update_mapping.py -i ${NAME}.uc -m ${NAME}.mapping_to_cons""")
+      maskingSection(o)
+      genericBlock(o, """coverageInformation.py -s "${NAME}"  -c ${NAME}_clean.ids -m ${NAME}.mapping_to_cons""")
+   return comboname
+
+
 def generateMulti(args):
    threads = max(1, int(math.floor( float(args.threads) / float(args.jobs))))
    parameters = yaml.load(open(args.config))
@@ -212,31 +250,16 @@ def generateMulti(args):
          buildCommonStepOne(args, oscript, pairs, ident, threads, False)
          passalongs.append([ident])
          genericBlock(oscript, """seqtk seq -A ${merged_fastq} > ${merged_fasta}""")
-         genericBlock(oscript, """vsearch -maskfasta ${merged_fasta} --hardmask --output ${short_name}.masked.fasta --threads ${THREADS}""")
-         genericBlock(oscript, """vsearch -sortbylength ${short_name}.masked.fasta --output ${short_name}.masked.sorted.fasta --threads ${THREADS}""")
-         genericBlock(oscript, """vsearch --cluster_smallmem ${short_name}.masked.sorted.fasta --strand plus --id 0.95  --consout ${short_name}_1.cons --msaout ${short_name}_1.msa --userout ${short_name}_1.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
-         genericBlock(oscript, """muso.py  -t ${THREADS} -i1 ${short_name}_1.msa -o1 ${short_name}_mod_1.cons -i2 ${short_name}_1.out -o2 ${short_name}_mod_1.out -g 1 -m 3 -n 2000""")
-         genericBlock(oscript, """vsearch -sortbylength ${short_name}_mod_1.cons --output ${short_name}_mod_1.sorted.fasta -threads ${THREADS}""")
-         genericBlock(oscript, """vsearch --cluster_smallmem ${short_name}_mod_1.sorted.fasta --strand both --id 0.95  --consout ${short_name}_2.cons --msaout ${short_name}_2.msa --userout ${short_name}_2.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
-         genericBlock(oscript, """muso.py  -t ${THREADS} -i1 ${short_name}_2.msa -o1 ${short_name}.final.contigs -i2 ${short_name}_2.out -o2 ${short_name}.final.out -g 2 -m 3 -n 2000""")
-         genericBlock(oscript, """trackOverlaps.py -i1 ${short_name}_mod_1.out  -i2 ${short_name}.final.out  -o ${short_name}.mapping_to_cons""")
-         genericBlock(oscript, """vsearch -maskfasta ${short_name}.final.contigs -hardmask  -output ${short_name}.final.contigs.masked -qmask dust -threads ${THREADS}""")
-         genericBlock(oscript, """sed -i -E '/>/!s/[acgt]/N/g' ${short_name}.final.contigs.masked""")
-         genericBlock(oscript, """grep -v '>'  ${short_name}.final.contigs.masked |  sed -e '1i>${short_name}' | seqret stdin ${short_name}.temp.pseudo.fasta""")
-         genericBlock(oscript, """build_lmer_table -l 12 -sequence ${short_name}.temp.pseudo.fasta -freq freqs_${short_name}""")
-         genericBlock(oscript, """RepeatScout -sequence ${short_name}.temp.pseudo.fasta -output repeats_${short_name}.fa -freq freqs_${short_name} -l 12""")
-         genericBlock(oscript, """usearch -usearch_local repeats_${short_name}.fa  -db ${short_name}.final.contigs.masked -id 0.80 -strand both -userfields query+target+id+qcov+tcov+qlo+qhi+tlo+thi -userout ${short_name}_bad.ids -query_cov 0.75  -threads ${THREADS} --maxaccepts 0 --maxrejects 0""")
-         genericBlock(oscript, """maskSeqs.py -i ${short_name}_bad.ids  -f ${short_name}.final.contigs.masked -o ${short_name}.final.contigs.masked_ && mv ${short_name}.final.contigs.masked_ ${short_name}.final.contigs.masked""")
-         genericBlock(oscript, """grep ">" ${short_name}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${short_name}_clean.ids""")         
-         genericBlock(oscript, """coverageInformation.py -s "${short_name}"  -c ${short_name}_clean.ids -m ${short_name}.mapping_to_cons""")
-
+         genericBlock(oscript, """vsearch -maskfasta ${merged_fasta} --hardmask --output ${NAME}.masked.fasta --threads ${THREADS}""")
+         clusterSection(oscript)
+         maskingSection(oscript)
+         genericBlock(oscript, """coverageInformation.py -s "${NAME}"  -c ${NAME}_clean.ids -m ${NAME}.mapping_to_cons""")
          print >> oscript, """cd .."""
 
-   buildChildRunner(args, children_scripts, ident, passalongs, True, threads)
+   buildChildRunner(args, children_scripts, passalongs, True, threads)
    threads = args.threads   
    with open(MAIN_SCRIPT, "w") as o:
-      commonMainScript(o, args, threads, True)
-   
+      commonMainScript(o, args, threads, True)  
 
       print >> o, "bash %s"%(CHILD_RUNNER%(1))
       print >> o, "bash %s"%(CHILD_RUNNER%(2))
@@ -261,14 +284,14 @@ def generateMulti(args):
             print >> oo, """i=0"""
             print >> oo, """while read line"""
             print >> oo, """do"""
-            print >> oo, """ ordering[$i]=line"""
+            print >> oo, """ ordering[$i]=${line}"""
             print >> oo, """ i=$(($i+1))"""
             print >> oo, """done < search.order"""
-            genericBlock(oo, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 $mapping[${ordering[0]}] -n1 ${ordering[0]} -i2 $mapping[${ordering[1]}] -n2 ${ordering[1]}  -l 150 -s 0.94""")
+            genericBlock(oo, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 ${mapping[${ordering[0]}]} -n1 ${ordering[0]} -i2 ${mapping[${ordering[1]}]} -n2 ${ordering[1]}  -l 150 -s 0.94""")
             if len(passalongs) > 2:
                print >> oo, """for i in {2..%s}"""%((len(passalongs)-1))
                print >> oo, """do"""
-               genericBlock(oo, """ Seanome.py -t ${THREADS}  -d ${DB_NAME} find_csr -g $mapping[${ordering[$i]}] -l 150 -s 0.94"""%dict(parent = d[0], ref = d[4]))
+               genericBlock(oo, """ Seanome.py -t ${THREADS}  -d ${DB_NAME} find_csr -g ${mapping[${ordering[$i]}]} -l 150 -s 0.94"""%dict(parent = d[0], ref = d[4]))
                print >>oo, """done"""
          else:
             print >> sys.stderr, "Only 1 library is present.. Require at least 2 libraries!"
@@ -282,36 +305,6 @@ def generateMulti(args):
          print >> oo, """cd .."""
       print >> o, "cd ${OLDDIR}"
 		
-
-def singleMergedInput(args, threads, passalongs):
-   comboname = "_".join(passalongs)
-   with open(CHILD_RUNNER%(2), "w") as o:
-      commonMainScript(o, args, threads, False)
-      print >> o, "cd csr"
-      print >> o, """combined_name="%s" """%(comboname)
-      genericBlock(o, """cat %s > ${combined_name}.fastq """%( " " .join( [ """ "../%(ident)s/%(ident)s.fastq" """%dict(ident=d) for d in passalongs] ) ) )
-      genericBlock(o, """seqtk seq -A ${combined_name}.fastq > ${combined_name}.fasta""")
-      genericBlock(o, """vsearch --derep_fulllength  ${combined_name}.fasta -minseqlength 1 -output ${combined_name}.dedup.fasta -uc ${combined_name}.uc --threads ${THREADS}""")
-      genericBlock(o, """vsearch -maskfasta ${combined_name}.dedup.fasta --hardmask --output ${combined_name}.masked.fasta --threads ${THREADS}""")
-      genericBlock(o, """vsearch -sortbylength ${combined_name}.masked.fasta --output ${combined_name}.masked.sorted.fasta --threads ${THREADS}""")
-      genericBlock(o, """vsearch --cluster_smallmem ${combined_name}.masked.sorted.fasta --strand plus --id 0.95  --consout ${combined_name}_1.cons --msaout ${combined_name}_1.msa --userout ${combined_name}_1.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
-      genericBlock(o, """muso.py  -t ${THREADS} -i1 ${combined_name}_1.msa -o1 ${combined_name}_mod_1.cons -i2 ${combined_name}_1.out -o2 ${combined_name}_mod_1.out -g 1 -m 3 -n 2000""")
-      genericBlock(o, """vsearch -sortbylength ${combined_name}_mod_1.cons --output ${combined_name}_mod_1.sorted.fasta -threads ${THREADS}""")
-      genericBlock(o, """vsearch --cluster_smallmem ${combined_name}_mod_1.sorted.fasta --strand both --id 0.95  --consout ${combined_name}_2.cons --msaout ${combined_name}_2.msa --userout ${combined_name}_2.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
-      genericBlock(o, """muso.py -t ${THREADS} -i1 ${combined_name}_2.msa -o1 ${combined_name}.final.contigs -i2 ${combined_name}_2.out -o2 ${combined_name}.final.out -g 2 -m 3 -n 2000""")
-      genericBlock(o, """trackOverlaps.py -i1 ${combined_name}_mod_1.out  -i2 ${combined_name}.final.out  -o ${combined_name}.mapping_to_cons""")
-      genericBlock(o, """update_mapping.py -i ${combined_name}.uc -m ${combined_name}.mapping_to_cons""")
-      genericBlock(o, """vsearch -maskfasta ${combined_name}.final.contigs -hardmask  -output ${combined_name}.final.contigs.masked -qmask dust""")
-      genericBlock(o, """sed -i -E '/>/!s/[acgt]/N/g' ${combined_name}.final.contigs.masked""")
-      genericBlock(o, """grep -v '>'  ${combined_name}.final.contigs.masked |  sed -e '1i>${combined_name}' | seqret stdin ${combined_name}.temp.pseudo.fasta""")
-      genericBlock(o, """build_lmer_table -l 12 -sequence ${combined_name}.temp.pseudo.fasta -freq freqs_${combined_name}""")
-      genericBlock(o, """RepeatScout -sequence ${combined_name}.temp.pseudo.fasta -output repeats_${combined_name}.fa -freq freqs_${combined_name} -l 12""")
-      genericBlock(o, """usearch -usearch_local repeats_${combined_name}.fa  -db ${combined_name}.final.contigs.masked -id 0.80 -strand both -userfields query+target+id+qcov+tcov+qlo+qhi+tlo+thi -userout ${combined_name}_bad.ids -query_cov 0.75  -threads ${THREADS} --maxaccepts 0 --maxrejects 0 """)
-      genericBlock(o, """maskSeqs.py -i ${combined_name}_bad.ids  -f ${combined_name}.final.contigs.masked -o ${combined_name}.final.contigs.masked_""")
-      genericBlock(o, """mv ${combined_name}.final.contigs.masked_ ${combined_name}.final.contigs.masked""")
-      genericBlock(o, """grep '>' ${combined_name}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${combined_name}_clean.ids""")
-      genericBlock(o, """coverageInformation.py -s "${combined_name}"  -c ${combined_name}_clean.ids -m ${combined_name}.mapping_to_cons""")
-   return comboname
 
 def generateSingle(args):
    threads = max(1, int(math.floor( float(args.threads) / float(args.jobs))))
@@ -329,7 +322,7 @@ def generateSingle(args):
 	 print >> oscript, """cd .."""
       passalongs.append( ident  )
 
-   buildChildRunner(args, children_scripts, ident, passalongs, False, threads)
+   buildChildRunner(args, children_scripts, passalongs, False, threads)
    threads = args.threads
    with open(MAIN_SCRIPT, "w") as o:
       commonMainScript(o, args, threads, False)
@@ -339,25 +332,13 @@ def generateSingle(args):
       comboname = singleMergedInput(args, threads, passalongs)
       with open(CHILD_RUNNER%(3), "w") as oo:
          commonMainScript(oo, args, threads, False)
-         print >> oo, """combined_name="%s" """%(comboname)
-         print >> oo, "minClustSize=3"
-         print >> oo, "maxClustSize=200"
-         print >> oo, """if [ -z "$1" ]; then """
-         print >> oo, "minClustSize=3"
-         print >> oo, "else"
-         print >> oo, "minClustSize=${1}"
-         print >> oo, """fi"""
-         print >> oo, """if [ -z "$2" ]; then """
-         print >> oo, "maxClustSize=200"
-         print >> oo, "else"
-         print >> oo, "maxClustSize=${2}"
-         print >> oo, """fi"""
-         minclust, maxclust = advanceNotice(oo, args, "${combined_name}")   
-         genericBlock(oo, """make_sam_with_cons.py -u  ${combined_name}.mapping_to_cons -q ${combined_name}.fastq -c ${combined_name}_clean.ids -f ${combined_name}.final.contigs.masked -l %s -m %s single -d DB_NAME"""%(minclust, maxclust))
+         print >> oo, """NAME="%s" """%(comboname)
+         clusterSizeHdr(oo)
+         minclust, maxclust = advanceNotice(oo, args, "${NAME}")   
+         genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d DB_NAME"""%(minclust, maxclust))
          genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
          genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
       print >> o, "cd ${OLDDIR}"
-
 
 
 if __name__ == "__main__":
@@ -371,12 +352,9 @@ if __name__ == "__main__":
         parser.add_argument("-a", "--advance", action = "store_true", required = False, help = "generates coverage information and requires the use to provide input")
         parser.set_defaults(workdir=".")
 
-
 	subparsers = parser.add_subparsers(dest='action', help='Available commands')
-
 	parser_sub = subparsers.add_parser('multiple')
 	parser_sub.set_defaults(func = generateMulti)
-
 	parser_sub = subparsers.add_parser('single')
 	parser_sub.set_defaults(func = generateSingle)
 

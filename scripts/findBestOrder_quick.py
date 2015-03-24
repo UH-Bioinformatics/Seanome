@@ -189,7 +189,7 @@ if len(sys.argv) != 4:
 
 order = returnBestPutativePerm(sys.argv[1], sys.argv[2], "score")
 with open(sys.argv[3], "w") as o:
-    o.write("\n".join(order))
+    print >> o, "\n".join(order)
 #print "best initial tree is: %s" % order
 
 

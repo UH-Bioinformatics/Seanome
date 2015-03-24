@@ -7,8 +7,7 @@ import os
 import subprocess 
 import sys
 
-USRCH= """usearch -usearch_local %(input)s -db %(database)s -id 0.80 -strand both -userfields query+target+id+alnlen+bits+qstrand+tstrand+qlo+qhi+tlo+thi+qrow+trow -userout %(output)s -threads %(threads)i -evalue 1e-5 %(tail)s"""
-
+USRCH= """/home/davidls/runthrough/bin/usearch -usearch_local %(input)s -db %(database)s -id 0.80 -strand both -userfields query+target+id+alnlen+bits+qstrand+tstrand+qlo+qhi+tlo+thi+qrow+trow -userout %(output)s -threads %(threads)i -evalue 1e-5 --maxaccepts 0 --maxrejects 0 %(tail)s"""
 
 
 def updateSearchOutput(args, fastaOne, fastaTwo, searchdata):
