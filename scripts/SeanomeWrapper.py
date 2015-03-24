@@ -199,10 +199,10 @@ def advanceNotice(o, args, name):
 
 def clusterSection(oscript):
    genericBlock(oscript, """vsearch -sortbylength ${NAME}.masked.fasta --output ${NAME}.masked.sorted.fasta --threads ${THREADS}""")
-   genericBlock(oscript, """vsearch --cluster_smallmem ${NAME}.masked.sorted.fasta --strand plus --id 0.95  --consout ${NAME}_1.cons --msaout ${NAME}_1.msa --userout ${NAME}_1.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
+   genericBlock(oscript, """vsearch --cluster_smallmem ${NAME}.masked.sorted.fasta --strand plus --id 0.95 --msaout ${NAME}_1.msa --userout ${NAME}_1.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
    genericBlock(oscript, """muso.py  -t ${THREADS} -i1 ${NAME}_1.msa -o1 ${NAME}_mod_1.cons -i2 ${NAME}_1.out -o2 ${NAME}_mod_1.out -g 1 -m 3 -n 2000""")
    genericBlock(oscript, """vsearch -sortbylength ${NAME}_mod_1.cons --output ${NAME}_mod_1.sorted.fasta -threads ${THREADS}""")
-   genericBlock(oscript, """vsearch --cluster_smallmem ${NAME}_mod_1.sorted.fasta --strand both --id 0.95  --consout ${NAME}_2.cons --msaout ${NAME}_2.msa --userout ${NAME}_2.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
+   genericBlock(oscript, """vsearch --cluster_smallmem ${NAME}_mod_1.sorted.fasta --strand both --id 0.95 --msaout ${NAME}_2.msa --userout ${NAME}_2.out --userfields query+target+caln+qstrand+tstrand --mincols 80 --maxdiffs 10 --threads ${THREADS}""")
    genericBlock(oscript, """muso.py  -t ${THREADS} -i1 ${NAME}_2.msa -o1 ${NAME}.final.contigs -i2 ${NAME}_2.out -o2 ${NAME}.final.out -g 2 -m 3 -n 2000""")
    genericBlock(oscript, """trackOverlaps.py -i1 ${NAME}_mod_1.out  -i2 ${NAME}.final.out  -o ${NAME}.mapping_to_cons""")
 
