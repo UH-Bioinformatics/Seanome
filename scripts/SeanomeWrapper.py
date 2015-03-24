@@ -85,7 +85,7 @@ def renameFastq(oscript, addPrefix):
 def genericBlock(oscript, line):
    print >> oscript, """echo -e "\\n"; date; echo -e "START %s" """%(line)
    print >> oscript, line
-   print >> oscript, """echo -e "\\n"; date; echo -e "END %s"\\n"""%(line)
+   print >> oscript, """echo -e "\\n"; date; echo -e "END %s\\n" """%(line)
 
 
 

@@ -7,9 +7,9 @@
 # give it some temporary location to spawn user generated files..
 import os
 
-os.environ['MPLCONFIGDIR'] = "/tmp/"
+#os.environ['MPLCONFIGDIR'] = "/tmp/"
 
-from scipy import cluster
+#from scipy import cluster
 import numpy as np
 import os
 import sys

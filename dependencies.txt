@@ -10,4 +10,5 @@ varscan: http://varscan.sourceforge.net/
 vsearch: https://github.com/torognes/vsearch
 usearch: http://www.drive5.com/usearch/
 seqtk: https://github.com/lh3/seqtk
+jellyfish: http://www.genome.umd.edu/jellyfish.html
  
