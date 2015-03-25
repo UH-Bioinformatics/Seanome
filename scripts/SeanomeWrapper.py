@@ -37,6 +37,23 @@ def clusterSizeHdr(o):
    print >> o, """fi"""
 
 
+def minlenAndminSim(o, parameters):
+   mlen = parameters['findcsr'].get('minlen', "150")
+   msim = parameters['findcsr'].get('minsim', "0.94")
+   print >> o, "minlen=%s"%(mlen)
+   print >> o, "minsim=%s"%(msim)
+   print >> o, """if [ -z "$1" ]; then """
+   print >> o, "minlen=%s"%(mlen)
+   print >> o, "else"
+   print >> o, "minlen=${1}"
+   print >> o, """fi"""
+   print >> o, """if [ -z "$2" ]; then """
+   print >> o, "minsim=%s"%(msim)
+   print >> o, "else"
+   print >> o, "minsim=${2}"
+   print >> o, """fi"""
+
+
 def printPearLine(oscript):
    genericBlock(oscript, """pear -f ${input_forward_path} -r ${input_reverse_path} -o ${NAME} -j ${THREADS} """)
 
@@ -266,6 +283,7 @@ def generateMulti(args):
       print >> o, "bash %s"%(CHILD_RUNNER%(3))
       with open(CHILD_RUNNER%(3), "w") as oo:
          commonMainScript(oo, args, threads, True)
+         minlenAndminSim(oo, parameters)
          print >> oo, "cd csr"
          for d in passalongs:
             genericBlock(oo, """mv ../%(parent)s/%(bam)s ../%(parent)s/%(bamidx)s cluster_bams/"""%dict(parent = d[0], bam = d[1], bamidx = d[2]) )
@@ -287,11 +305,11 @@ def generateMulti(args):
             print >> oo, """ ordering[$i]=${line}"""
             print >> oo, """ i=$(($i+1))"""
             print >> oo, """done < search.order"""
-            genericBlock(oo, """Seanome.py -t ${THREADS}  -d ${DB_NAME} seed_csr -i1 ${mapping[${ordering[0]}]} -n1 ${ordering[0]} -i2 ${mapping[${ordering[1]}]} -n2 ${ordering[1]}  -l 150 -s 0.94""")
+            genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} seed_csr -i1 ${mapping[${ordering[0]}]} -n1 ${ordering[0]} -i2 ${mapping[${ordering[1]}]} -n2 ${ordering[1]}  -l ${minlen} -s ${minsim} """)
             if len(passalongs) > 2:
                print >> oo, """for i in {2..%s}"""%((len(passalongs)-1))
                print >> oo, """do"""
-               genericBlock(oo, """ Seanome.py -t ${THREADS}  -d ${DB_NAME} find_csr -g ${mapping[${ordering[$i]}]} -l 150 -s 0.94"""%dict(parent = d[0], ref = d[4]))
+               genericBlock(oo, """ Seanome.py -t ${THREADS} -d ${DB_NAME} find_csr -g ${mapping[${ordering[$i]}]} -l ${minlen} -s ${minsim} """%dict(parent = d[0], ref = d[4]))
                print >>oo, """done"""
          else:
             print >> sys.stderr, "Only 1 library is present.. Require at least 2 libraries!"
