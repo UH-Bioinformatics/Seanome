@@ -1,0 +1,8 @@
+Biopython
+pysam
+vcf
+scipy
+numpy
+redis
+redis-semaphore
+pyyaml

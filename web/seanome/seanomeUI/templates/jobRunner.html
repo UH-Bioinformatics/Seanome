@@ -1,0 +1,177 @@
+{% extends "base_generic.html" %}
+{% load staticfiles %}
+{% load markdown_deux_tags %}
+{% block title %} - New job{% endblock %}
+{% block container %}
+{#<strong>Once a Job is submitted or canceled, you will not be able to make changes without restarting from uploading your files.</strong>#}
+
+
+{#<button class = "btn btn-default" id = "refreshfiles" type = "button">Refresh file list</button>#}
+
+<br />
+<br />
+<form method = "POST" id = "filenamer"  class = "form-horizontal" style = "display:inline;" role="form" action = "{% url 'runjob' jobj.id %}"  onsubmit="return validateForm('filenamer')" onkeypress="return event.keyCode != 13;">
+{% csrf_token %}
+
+
+<div class ="form-group form-group-sm">
+  <div class = "col-md-4">How do you wish to process your data?</div>
+  <div class = "col-md-3">
+    <select id = "id_asm" name = "id_asm" class= "form-control input-sm" >
+      <option value = "clust" selected = "selected" >Clustering</option>
+      <option value = "asm" >Assemble</option>
+      <option value = "preasm" >User Assembled (pre-assembled)</option>
+    </select>
+  </div>
+</div>
+
+<div class ="form-group form-group-sm">
+  <div class = "col-md-4">Do you wish to run all future steps with the default parameters?<br />(Selecting No will require user intervention)</div>
+  <div class = "col-md-3">
+    <select id = "id_interrupt" name = "id_interrupt" class= "form-control input-sm" >
+      <option value = "Continue" selected = "selected" >Yes</option>
+      <option value = "Interrupt" >No</option>
+    </select>
+  </div>
+</div>
+
+<div class ="form-group form-group-sm">
+  <div class = "col-md-4">Do you wish to mask repeats?</div>
+  <div class = "col-md-3">
+    <select id = "id_repeats" name = "id_repeats" class= "form-control input-sm" >
+      <option value = "0" selected = "selected" >No</option>
+      <option value = "1" >Yes</option>
+    </select>
+  </div>
+</div>
+
+<div class ="form-group form-group-sm">
+  <div class = "col-md-4">Minimum CSR similarity</div><div class = "col-md-3"><input id = "id_sim" name = "id_sim" class= "form-control input-sm" type = "number" min = "0" max = "1" step = "any" value = "0.8" /></div>
+</div>
+
+<div class ="form-group form-group-sm">
+  <div class = "col-md-4">Minimum CSR sequence length</div><div class = "col-md-3"><input id = "id_slen" name = "id_slen" class= "form-control input-sm" type = "number" min = "0" value = "100" /></div>
+</div>
+
+<div class ="form-group form-group-sm">
+  <div id = "note" class = "col-md-8"></div>
+</div>
+<span id = "files"></span>
+<button type = "button" class="btn btn-default" data-toggle="modal" data-target="#submitModal">Submit job</button>
+
+<div class="modal fade" id = "submitModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        <h4 class="modal-title">Verify Submission</h4>
+      </div>
+      <div class="modal-body"><p>Are you sure you wish to submit this job?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
+        <button type="submit" class="btn btn-primary">Yes</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+</form> 
+
+
+<form method = "POST" action ="{% url 'canceljob' jobj.id %}" style = "display:inline;padding-left:15px;" onkeypress="return event.keyCode != 13;">
+{% csrf_token %}
+<input type = "hidden" value = "{{jobj.id}}">
+<button type = "button" class="btn btn-default" data-toggle="modal" data-target="#cancelModal">Cancel job</button>
+<div class="modal fade" id = "cancelModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        <h4 class="modal-title">Cancel Job</h4>
+      </div>
+      <div class="modal-body"><p>Are you sure you wish to cancel this job?</p><p></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
+        <button type="submit" class="btn btn-primary">Yes</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+</form>
+
+
+
+
+
+<script type="text/javascript">
+function validateForm(ident){
+ var f =$("#" + ident); 
+ var countmap=[];
+ var names = f.find("[id^=N_]");
+ var c = names.length;
+ names.each(function(idx, d){
+  d = $(d);
+  var k = $.trim(d.val()).toLowerCase();
+  if( k != ""){
+   c -= 1; 
+   if( k in countmap)
+     countmap[k] += 1;
+   else
+     countmap[k] = 1;
+  }
+ });
+ var sel = $("#id_asm").val();
+
+ if( c != 0){  
+  $('#submitModal').modal('hide');
+  alert("Not all common names are filled");
+  return false;
+ }
+ var per = 2;
+ if(sel == 'preasm'){
+  per = 3;
+ }
+ var invalid = [];
+ for( var i in countmap){
+  if( countmap[i] != per)
+   invalid.push(i + " has " + countmap[i] + " item(s) with the same common label.  Require " + per + " items with the same common label.");
+ }
+
+ if( invalid.length != 0){    
+  $('#submitModal').modal('hide'); 
+  alert(invalid.join("\n"));
+  return false;
+ }
+ $('#submitModal').modal('hide'); 
+}
+
+$(document).ready(function(){
+function refreshData(){
+  $.get("{% url 'ajax_dir_refresh' jobj.id %}", function(data){
+       var page = "<div class = 'form-group form-group-sm'><div class ='col-md-4'>Uploaded file names</div><div class = 'col-md-4'>Common labels</div></div>";
+       for(var i = 0; i < data.length; ++i){ 
+        page += "<div class = 'form-group form-group-sm'><div class ='col-md-4'><input tabindex='-1' class = 'input-sm form-control' readonly = 'readonly' type = 'text'  id = 'F_" + i + "' name = 'F_" + i + "' value = '" + data[i] + "' ></div>";
+        page += "<div class = 'col-md-4'><input class ='input-sm form-control' type = 'text' id = 'N_" + i + "' name = 'N_" + i + "' ></div></div>"
+       }
+        $("#files").html(page);
+       } );
+}
+
+function setNote(e){
+ if(e.val() == 'preasm'){
+  $("#note").html("<div class = 'row col-md-12 text-center bg-danger'>Seanome expects <strong>3</strong> files to share a common label.</div><div class = 'row col-md-12'>Seaome also expects the following files for each common label:<ul class = 'text-left'><li>Assembled contigs (fasta)</li><li>Forward reads used for the assembly (fastq)</li><li>Reverse reads used for the assembly (fastq)</li></ul></div>");			  
+ } else {
+  $("#note").html("<div class = 'row col-md-12 text-center bg-danger'>Seanome expects <strong>2</strong> files to share a common label.</div><div class = 'row col-md-12'>Seanome also expects the following files for each common label:<ul class = 'text-left'><li>Forward reads (fastq)</li><li>Reverse reads (fastq)</li></ul></div>");			  
+ }			  
+}
+$("#id_asm").on("change", function(e){setNote($(this));});
+{#$("#refreshfiles").on("click", function(e){refreshData();});#}
+refreshData();
+setNote($("#id_asm"));
+});
+</script>
+
+{% endblock %}

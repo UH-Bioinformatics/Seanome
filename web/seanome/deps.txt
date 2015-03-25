@@ -1,0 +1,18 @@
+pear
+seqret
+sizeseq
+usearch
+cap3
+sga
+build_lmer_table
+RepeatScout
+formatdb
+fastacmd
+samtools
+bowtie2
+picard tools
+Platypus
+lastz
+hmmer
+muscle
+redis-server

@@ -1,0 +1,88 @@
+{% extends "base_generic.html" %}
+{% load staticfiles %}
+{% load markdown_deux_tags %}
+{% load humanize %}
+{% block title %} - Breakdown{% endblock %}
+
+
+{% block container %}
+{#<h2>Breakdown</h2>#}
+<div class= "row">
+<div class = "col-md-12">
+<br />
+<div class = "row"><div class = "col-md-4">Number of Species</div><div class = "col-md-4">{{numgenomes}}</div></div>
+<h3>Pseudo-genome bp count</h3>
+{% for r in genomelens %}
+<div class = "row"><div class = "col-md-4">{{r.0}}</div><div class = "col-md-4">{{r.1|intcomma}}</div></div>
+{% endfor %}
+<hr />
+<h3>Processing order</h3>
+<ol>
+{% for r in ordering %}
+
+<li>{{r}}</li>
+{% endfor %}
+</ol>
+
+<hr />
+<h2>Breakdown of CSRs by number of species</h2>
+<div class= "row col-md-12"><small>Click on a circle to view breakdown</small></div>
+<div class = "row col-md-12">
+{% for i in data %}
+ {% if forloop.first %}
+  <div class = "row"><div class = "col-md-4"><strong>Number of Species</strong></div><div class = "col-md-4"><strong>Number of CSRs</strong></div></div>
+ {% endif %}
+  <div class = "row"><div class = "col-md-4">{{i.label}}</div><div class = "col-md-4">{{i.v}}</div></div>
+{% endfor %}
+</div>
+
+<div id = "breakdown" {#style = "border: 1px solid #000000;"#} ></div>
+<br />
+</div>
+
+<script type="text/javascript" src="{% static 'js/d3/d3.min.js' %}"></script>
+<script>
+function bubbles(data, parent){
+
+var colors =  [
+"#2484c1", "#65a620", "#7b6888", "#a05d56", "#961a1a", "#d8d23a", "#e98125", "#d0743c", "#635222", "#6ada6a",
+"#0c6197", "#7d9058", "#207f33", "#44b9b0", "#bca44a", "#e4a14b", "#a3acb2", "#8cc3e9", "#69a6f9", "#5b388f",
+"#546e91", "#8bde95", "#d2ab58", "#273c71", "#98bf6e", "#4daa4b", "#98abc5", "#cc1010", "#31383b", "#006391",
+"#c2643f", "#b0a474", "#a5a39c", "#a9c2bc", "#22af8c", "#7fcecf", "#987ac6", "#3d3b87", "#b77b1c", "#c9c2b6",
+"#807ece", "#8db27c", "#be66a2", "#9ed3c6", "#00644b", "#005064", "#77979f", "#77e079", "#9c73ab", "#1f79a7"
+];
+
+var diameter = 700, format = d3.format(",d"), 
+bubble = d3.layout.pack()
+ .sort(null)
+ .size([diameter, diameter])
+ .padding(1.5);
+
+var svg = d3.select(parent).append("svg")
+ .attr("width", diameter)
+ .attr("height", diameter)
+ .attr("class", "bubble2");
+var node = svg.selectAll(".node")
+ .data(bubble.nodes({children: data}).filter(function(d) { return !d.children; }))
+ .enter().append("g")
+ .attr("class", "node")
+ .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+node.append("title")
+ .text(function(d) { return d.label + ": " + format(d.v); });
+node.append("circle")
+ .attr("r", function(d) { return d.r; })
+ .style("fill", function(d, i ) { return colors[i % colors.length]; })
+ .style("cursor", "pointer")
+ .on("click", function(d){window.location.assign(d.url);});
+node.append("text")
+ .attr("dy", ".9em")
+ .style("text-anchor", "middle")
+ .style("cursor", "help")
+ .on("click", function(d){window.location.assign(d.url);})
+ .text(function(d) { return d.label; });
+}
+
+$(document).ready(function(){bubbles(JSON.parse('{{tally|safe}}'),"#breakdown");});
+</script>
+
+{% endblock %}

@@ -17,8 +17,8 @@ libraries:
     
 """
 
-MAIN_SCRIPT="primary_script.sh"
-CHILD_SCRIPT="%s_child_%s_step_%s.sh"
+MAIN_SCRIPT="""primary_script.sh"""
+CHILD_SCRIPT="""%s_child_%s_step_%s.sh"""
 CHILD_RUNNER="""child_runner_script_%s.sh"""
 
 

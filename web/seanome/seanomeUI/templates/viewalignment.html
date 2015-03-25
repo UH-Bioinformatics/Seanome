@@ -1,0 +1,50 @@
+{% extends "base_generic.html" %}
+{% load staticfiles %}
+{% load markdown_deux_tags %}
+{% load django_select2_tags %}
+{% block doctype %}{% endblock %}
+{% block title %} - Alignment view for {{count}}{% endblock %}
+
+{% block head %}
+<link href="{% static 'css/msa.min.css' %}" rel="stylesheet">
+<link href="{% static 'css/jquery.dataTables.css' %}" rel="stylesheet">
+<link href="{% static 'css/dataTables.colReorder.css' %}" rel="stylesheet">
+
+{% endblock %}
+
+{% block container %}
+<div class = "row"><div class = "col-md-12"><h2>Download Alignments</h2></div></div>
+<div class = "row"><div class ="col-md-4"><a href = "{% url 'snp_download' jobj.id count %}">Download all (zip/fasta/vcf)</a></div></div>
+
+<br />
+
+<div class = "row"><div class = "col-md-12"><h2>View Alignment</h2></div></div>
+<div class = "row">
+  <div class= "col-md-3"><label for = "">Alignment to view</label></div>
+  <div class = "col-md-4"><select id = "aln" name = "aln">
+      <option value = "" selected = "selected"></option>{% for i in tally %}<option value = "{{jobj.id}}/{{i}}/">{{i}}</option>{% endfor %}</select><br /><br />
+
+    <input type="radio" name="clean" value="1" onclick = "draw('{% url 'startjob' %}');" checked="checked">Post trimming<br /><input type="radio" name="clean" value="0" onclick = "draw('{% url 'startjob' %}');" >Pre trimming</div>
+</div>
+<br />
+<div class = "row"><div class = "col-md-12" id = "msaParent"></div></div>
+<br />
+<div class = "row"><div class = "col-md-12" id = "snpParent"></div></div>
+<br />
+
+{% import_django_select2_js_css %}
+
+<script type="text/javascript" src="{% static 'js/msa.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/jquery/jquery.dataTables.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/alnview.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/jquery/dataTables.colReorder.js' %}"></script>
+
+{#<script type="text/javascript" src="http://cdn.datatables.net/plug-ins/a5734b29083/integration/bootstrap/3/dataTables.bootstrap.js"></script>#}
+<script type="text/javascript">
+
+$(document).ready(function(){
+$("#aln").on("change", function(){draw("{% url 'startjob' %}");});
+draw("{% url 'startjob' %}");
+});
+</script>
+{% endblock %}

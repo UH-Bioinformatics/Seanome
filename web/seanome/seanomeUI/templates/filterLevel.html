@@ -1,0 +1,68 @@
+{% extends "base_generic.html" %}
+{% load staticfiles %}
+{% load markdown_deux_tags %}
+{% block title %} - Filter Clusters{% endblock %}
+{% block container %}
+
+<form method = "POST" id = "filenamer" action = "." class="form-horizontal" role="form">
+{% csrf_token %}
+<div id = "filters"></div>
+<br /><br />
+ <div class="form-group form-group-sm">
+    <label for="id_snper" class="control-label col-md-4">SNP Caller:</label>
+    <div class="col-md-6">
+      <select id = "id_snper" name = "id_snper" class = "form-control">
+	<option value = "1" selected = "selected" >Varscan</option>
+	<option value = "2" disabled = "disabled" >Free bayes</option>
+	<option value = "3" disabled = "disabled">GATK</option>
+      </select>
+    </div>
+  </div>
+
+ <div class="form-group form-group-sm">
+    <label for="id_ordering" class="control-label col-md-4">Ordering method:</label>
+    <div class="col-md-6">
+      <select id = "id_ordering" name = "id_ordering" class = "form-control">
+	<option value = "1" selected = "selected" >K-mer counting (quick)</option>
+	{#<option value = "2" >Exhaustive (long)</option>#}
+      </select>
+    </div>
+  </div>
+
+
+ <div class ="form-group form-group-sm">
+  <label class = "control-label col-md-4" for="id_consen">Method to build the consensus sequence</label>
+  <div class = "col-md-6">
+    <select id = "id_consen" name = "id_consen" class= "form-control">
+      <option value = "1" selected = "selected" >IUPAC majority</option>
+{#   <option value = "2" disabled = "disabled" >Other</option> #}
+    </select>
+  </div>
+</div>
+
+
+<button type="submit" class="btn btn-default" id = "submitter" >submit</button>
+</form>
+
+<div class = "graphtip" id = "toolbox" style = "opacity:0;"></div>
+<br />
+<br />
+<script type="text/javascript" src="{% static 'js/d3/d3.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/filter.min.js' %}"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+ var idx =0, jstr = JSON.parse('{{data|safe}}');
+ jstr.forEach(function(data){
+ var name = data[0],
+ svgname = "chart_" + idx,
+ dataname = "data_" +  name;
+ 
+ $("#filters").append("<svg id = '"+ svgname  + "'></svg>
+   <br /><label for ='"+ dataname + "_0'>Minimum cluster size for " + name +"</label> : <input name = '" +  dataname + "_0' id = '" +  dataname +"_0' type= 'text' value = '3' />
+   <br /><label for ='"+ dataname + "_1'>Maximum cluster size for " + name +"</label> : <input name = '" +  dataname + "_1' id = '" +  dataname +"_1' type= 'text' value =' 200' />");
+   createChart(name, data[1], "#" + svgname, "#" + dataname);
+   ++idx;				 
+ })
+});
+</script>
+{% endblock %}

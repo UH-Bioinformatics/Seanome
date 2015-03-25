@@ -1,0 +1,112 @@
+{% extends "base_generic.html" %}
+{% load staticfiles %}
+{% load markdown_deux_tags %}
+{% load django_select2_tags %}
+
+{% block title %} - Results filter for {{count}}{% endblock %}
+{% block head %}
+ <link href="{% static 'css/msa.min.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block container %}
+
+<div class= "row">
+<div class = "row"><div class = "col-md-12"><h2>All Data</h2></div></div>
+  <div class = "col-md-4">All</div>
+  <div class = "col-md-8"><a href = "{% url 'msa_download' jobj.id count 5 %}">Download</a> (zip)</div>
+</div>
+<hr />
+<div class = "row"><div class = "col-md-12"><h2>Concantenated alignments</h2></div></div>
+<div class= "row">
+  <div class = "col-md-4">Post trimming</div>
+  <div class = "col-md-8"><a href = "{% url 'msa_download' jobj.id count 0 %}">Download</a> (zip/fasta/clustal)</div>
+</div>
+<hr />
+
+<div class = "row"><div class = "col-md-12"><h2>Post trimming</h2></div></div>
+{% comment %}
+<div class = "row">
+  <div class= "col-md-3">Minimum average coverage: </div>
+  <div class= "col-md-3">{{postcov.0}}</div>
+  <div class= "col-md-3">Maximum average coverage: </div>
+  <div class= "col-md-3">{{postcov.1}}</div>
+</div>
+{% endcomment %}
+
+<div class = "row" id = "postgraph"></div>
+<div class = "row">
+  <div class= "col-md-3"><label for = "postcov">Minimum required coverage</label></div>
+  <div class = "col-md-4"><select id = "postcov" name = "postcov">{% for i in postcovall %}<option value = "{{i.0}}">{{i.0}}</option>{% endfor %}</select></div>
+  <div class = "col-md-3"><label>CSRs &gt= selected coverage: </label></div><div class = "col-md-2"><input id = "postcm"  readonly="readonly" type = "text" value  = ''></div>
+</div>
+
+<div class= "row">
+  <div class = "col-md-4">Non-concantenated alignment</div>
+  <div class = "col-md-4"><a href = "#" onclick = "ondownload('{% url 'msa_download' jobj.id count 1 %}', '#postcov', '{{postcov.0}}', '{{postcov.1}}');return false;" >Download</a> (zip/fasta)</div>
+</div>
+
+<div class= "row">
+  <div class = "col-md-4">sam files</div>
+  <div class = "col-md-8"><a href = "#" onclick = "ondownload('{% url 'msa_download' jobj.id count 4 %}', '#postcov', '{{postcov.0}}', '{{postcov.1}}'); return false;">Download</a> (zip/sam)</div>
+</div>
+
+<hr />
+<div class = "row"><div class = "col-md-12"><h2>Pre trimming</h2></div></div>
+
+{% comment %}
+<div class = "row">
+  <div class= "col-md-3">Minimum average coverage: </div>
+  <div class= "col-md-3">{{precov.0}}</div>
+  <div class= "col-md-3">Maximum average coverage: </div>
+  <div class= "col-md-3">{{precov.1}}</div>
+</div>
+{% endcomment %}
+
+<div class = "row" id = "pregraph"></div>
+<div class = "row">
+  <div class= "col-md-3"><label for = "precov">Minimum required coverage</label></div>
+  <div class = "col-md-4"><select id = "precov" name = "precov">{% for i in precovall %}<option value = "{{i.0}}">{{i.0}}</option>{% endfor %}</select></div>
+  <div class = "col-md-3"><label>CSRs &gt= selected coverage: </label></div><div class = "col-md-2"><input id = "precm"  readonly="readonly" type = "text" value  = ''></div>
+</div>
+
+<div class= "row">
+  <div class = "col-md-4">Non-concantenated alignment</div>
+  <div class = "col-md-8"><a onclick= "ondownload('{% url 'msa_download' jobj.id count 2 %}', '#precov', '{{precov.0}}', '{{precov.1}}');return false;" href = "#" >Download</a> (zip/fasta)</div>
+</div>
+
+<div class= "row">
+  <div class = "col-md-4">sam files</div>
+  <div class = "col-md-8"><a onclick = "ondownload('{% url 'msa_download' jobj.id count 3 %}', '#precov', '{{precov.0}}', '{{precov.1}}');return false;" href = "#">Download</a> (zip/sam)</div>
+<br /><br /><br />
+<div class = "graphtip" id = "toolbox" style = "opacity:0;"></div>
+
+{% import_django_select2_js_css %}
+
+<script type="text/javascript" src="{% static 'js/d3/d3.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/breakdown.min.js' %}"></script>
+
+
+<script type="text/javascript">
+
+$(document).ready(function(){
+
+var prebrkcm = JSON.parse('{{prebrkcm|safe}}'),			    
+postbrkcm = JSON.parse('{{postbrkcm|safe}}');			    
+
+$("#precov").select2();
+$("#postcov").select2();
+
+$("#postcov").on("change", function(e){setcovVals("#postcov", "#postcm", postbrkcm);});
+$("#precov").on("change", function(e){setcovVals("#precov", "#precm", prebrkcm);});
+
+$("#pregraph").append("<svg id = 'presvg'></svg>");
+createChart(JSON.parse('{{prebreak|safe}}'), '#presvg', '#precov'); 
+
+$("#postgraph").append("<svg id = 'postsvg'></svg>");
+createChart(JSON.parse('{{postbreak|safe}}'), '#postsvg', '#postcov'); 
+
+setcovVals("#postcov", "#postcm", postbrkcm);
+setcovVals("#precov", "#precm", prebrkcm);
+});
+</script>
+{% endblock %}

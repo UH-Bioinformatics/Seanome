@@ -1,0 +1,27 @@
+{% extends "base_generic.html" %}
+{% load staticfiles %}
+{% load markdown_deux_tags %}
+{% block title %} - New job{% endblock %}
+{% block container %}
+
+{% if jobj.stage == -1 %}
+  <h3>This Job has already been canceled</h3>
+  <p>To start a new job, please go <a href = "{% url 'startjob' %}">here</a></p>
+  {% if errors %}
+  <p> Job was canceled due to not all common labels being in pairs</p>
+  {#{{errors}}#}
+  {% endif %}
+ {% elif jobj.stage == 1%}
+  <h3>This Job is waiting to be begin processing.</h3>
+ {% elif jobj.stage == 2 %}
+  <h3>This Job is being processed.</h3>
+{% endif %}
+
+{% if jobj.stage != -1 %}
+<script type="text/javascript" src="{% static 'js/poll.min.js' %}"></script>
+<script>
+$(document).ready(function(){pollStatus("{% url 'ajax_status' jobj.id %}");});
+</script>
+{% endif %}
+
+{% endblock %}
