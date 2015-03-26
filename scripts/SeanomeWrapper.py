@@ -37,20 +37,27 @@ def clusterSizeHdr(o):
    print >> o, """fi"""
 
 
-def minlenAndminSim(o, parameters):
+def minlenAndminSim(o, parameters, shift = False):
+   if shift:
+      larg = "$3"
+      sarg = "$4"
+   else:
+      larg = "$1"
+      sarg = "$2"
+
    mlen = parameters['findcsr'].get('minlen', "150")
    msim = parameters['findcsr'].get('minsim', "0.94")
    print >> o, "minlen=%s"%(mlen)
    print >> o, "minsim=%s"%(msim)
-   print >> o, """if [ -z "$1" ]; then """
+   print >> o, """if [ -z "%s" ]; then """%(larg)
    print >> o, "minlen=%s"%(mlen)
    print >> o, "else"
-   print >> o, "minlen=${1}"
+   print >> o, "minlen=%s"%(larg)
    print >> o, """fi"""
-   print >> o, """if [ -z "$2" ]; then """
+   print >> o, """if [ -z "%s" ]; then """%(sarg)
    print >> o, "minsim=%s"%(msim)
    print >> o, "else"
-   print >> o, "minsim=${2}"
+   print >> o, "minsim=%s"%(sarg)
    print >> o, """fi"""
 
 
@@ -353,7 +360,8 @@ def generateSingle(args):
          print >> oo, """NAME="%s" """%(comboname)
          clusterSizeHdr(oo)
          minclust, maxclust = advanceNotice(oo, args, "${NAME}")   
-         genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME}"""%(minclust, maxclust))
+         minlenAndminSim(oo, parameters, True)    
+         genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME} -t ${THREADS} """%(minclust, maxclust))
          genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
          genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
       print >> o, "cd ${OLDDIR}"
