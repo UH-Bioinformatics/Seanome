@@ -9,8 +9,11 @@ class parser(object):
         self.reps ={}
 
 
-    def getClusters(self):
-        return self.clusters
+    def getClusters(self, val=None):
+        if val:
+            return self.clusters[val]
+        else:
+            return self.clusters
 
 
     def getReps(self):
