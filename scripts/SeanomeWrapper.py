@@ -353,7 +353,7 @@ def generateSingle(args):
          print >> oo, """NAME="%s" """%(comboname)
          clusterSizeHdr(oo)
          minclust, maxclust = advanceNotice(oo, args, "${NAME}")   
-         genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d DB_NAME"""%(minclust, maxclust))
+         genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME}"""%(minclust, maxclust))
          genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
          genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
       print >> o, "cd ${OLDDIR}"
