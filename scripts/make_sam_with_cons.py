@@ -17,51 +17,39 @@ from utils.samformater import makeSAMHdr, generateReadGroups
 from utils.samToBam import samToBam
 from utils.sqlitedb import buildsqlitedb
 from utils.consensus import updateConsensus
-from utils.utils import removeFiles, readfq
+from utils.utils import removeFiles, readfq, CONSENSUS_NAME
 from utils.threadpool import ProducerConsumer
 
+SAMHDR1 = """@HD\tVN:1.0"""
+SAMHDR2 = """@SQ\tSN:%(rname)s\tLN:%(rlen)s"""
+READGROUP = """@RG\tID:%(groupid)s\tSM:%(library)s\tLB:%(library)s\tPL:ILLUMINA"""
+
+SAMLINE_S="""%(qname)s\t0\t%(rname)s\t%(pos)s\t0\t%(cigar)s\t*\t0\t0\t%(seq)s\t%(qual)s\tRG:Z:%(rgroup)s"""
+SAMLINE_M="""%(qname)s\t0\t%(rname)s\t%(pos)s\t0\t%(cigar)s\t*\t0\t0\t%(seq)s\t%(qual)s"""
 
 def makeSAMrecSingle(pos, seqinfo, cig, orient, refname, single = False, grpident = None):
     newcig, pos, rmfront, rmback = cleanupCigar(pos, cig, len(seqinfo[1]))
-    a = pysam.AlignedRead()
-    a.tid = 0
-    a.rname = 0
-    a.qname = seqinfo[0]   
-    a.flag = 0x00 
-    if orient == '-':
-        seq = Seq(seqinfo[1])        
-        a.seq = str(seq.reverse_complement())        
+    
+    if orient == '+':
+        seq= seqinfo[1]
+        qual = seqinfo[2]
     else:
-        a.seq= str(seqinfo[1])
+        seq = str(Seq(seqinfo[1]).reverse_complement())          
+        qual = seqinfo[2][::-1]
 
     if rmback:
-        a.seq = a.seq[:-rmback]
+        seq = seq[:-rmback]
+        qual = qual[:-rmback]
     if rmfront:
-        a.seq = a.seq[rmfront:]
-
-    if len(seqinfo) == 3:
-        tmpq = seqinfo[2]
-        if orient == '-':
-            tmpq = tmpq[::-1]
-        if rmback:
-            tmpq = tmpq[:-rmback]
-        if rmfront:
-            tmpq = tmpq[rmfront:]
-        a.qual = tmpq
-
-    a.pos =  pos
-    a.cigarstring = newcig   
-    a.rnext = -1
-    a.pnext= -1
-    a.tlen = 0
+        seq = seq[rmfront:]
+        qual = qual[rmfront:]
+    pos =  pos + 1 # need to shift from 0 base to 1 base number system
     if single:
-        tags=  []
-        if grpident == None:
-            tags.append( ("RG", "GROUP-%s"%(seqinfo[0].split("_")[0]),) )
-        else:
-            tags.append( ("RG", "GROUP-%s"%(grpident),) )
-        a.tags = tags
-    return a
+        return SAMLINE_S%dict(qname = seqinfo[0], rname = CONSENSUS_NAME, pos = pos, cigar = newcig, seq = seq, qual = qual, rgroup = "GROUP-%s"%(grpident))
+    else:
+        return SAMLINE_M%dict(qname = seqinfo[0], rname = CONSENSUS_NAME, pos = pos, cigar = newcig, seq = seq, qual = qual)
+
+
 
 def makeSAMrec(pos, seqinfo, cig, orient, refname, single = False, grpident = None):
     newcig, pos, rmfront, rmback = cleanupCigar(pos, cig, len(seqinfo.seq))
@@ -110,29 +98,29 @@ def singleProducer(args):
     idx = args[2]
     r = args[3]
     srec = []
-    grps = OrderedDict()
+    grps = dict()
+    grpHdrs = dict()
+    readgroups = []
     gidx = 0
     for d in clusterdat:
         grpident = d[0].split("_")[0]
         if grpident not in grps:
             grps[ grpident ] = gidx
+            gid = "GROUP-%s"%(gidx)
+            grpHdrs[grpident] = READGROUP%dict(groupid = gid, library = grpident )
+            readgroups.append(gid)
             gidx += 1
         srec.append(makeSAMrecSingle(0, d[3], d[1], d[2], conseq[0], True, grps[ grpident ]))
     fname = "outFile_%s_%s"%(idx, len(conseq[1]) )
     tmp = str(conseq[1])   
-    rgrps, idtomap = generateReadGroups(grps.iterkeys())
-    samname = "%s.sam"%(fname)
-    samout = pysam.Samfile(samname , "wh", header= makeSAMHdr("Consensus", len(conseq[1]), rgrps))
-    for f in srec:
-        samout.write(f)
-    samout.close()
-    samdat = open(samname).read()
+    #rgrps, idtomap = generateReadGroups(grps.iterkeys())
+    samdat ="%s\n%s\n%s\n%s\n"%(SAMHDR1, SAMHDR2%dict(rname = CONSENSUS_NAME, rlen = len(conseq[1]) ), "\n".join(grpHdrs.itervalues()), "\n".join(srec) )
     bamname, bamidxname = samToBam(samdat, fname, False)
     consensus = updateConsensus(bamname)
     bamdat = open(bamname).read() 
     bamidx = open(bamidxname).read() 
-    removeFiles([samname, bamname, bamidxname])    
-    return (fname, rgrps, samdat, bamdat, bamidx, consensus,)
+    removeFiles([bamname, bamidxname])    
+    return (fname, readgroups, samdat, bamdat, bamidx, consensus,)
 
     
 def singleConsumer(con, returndata):
@@ -148,7 +136,8 @@ def singleConsumer(con, returndata):
         cur.execute("""SELECT id FROM files WHERE name = ?;""", (fname,))
         row = cur.fetchone()
         fileID = row[0]
-        cur.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (fileID, g['ID'],) for g in  rgrps)  )      
+        cur.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (fileID, g,) for g in  rgrps)  )      
+        #cur.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (fileID, g['ID'],) for g in  rgrps)  )      
         cur.execute("""INSERT INTO trimmed_inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (fileID, samdat, sqlite3.Binary(bamdat), sqlite3.Binary(bamidx),) )
         cur.execute("""INSERT INTO trimmed_consensus(fileID, sequence) VALUES(?, ?)""", (fileID, consensus,) )
     con.commit()
@@ -168,7 +157,8 @@ def processSingle(args):
     parser.parse(seqindex, cleanids, cutoff, maxcutoff)
     clusterid = parser.getClusters().keys()
     clusterid.sort()
-    
+    #for idx, r in enumerate(clusterid):
+        #singleProducer((conindex[r], parser.getClusters(r), idx, r,))        
     worker = ProducerConsumer(args, args.threads, singleProducer, singleConsumer)
     worker.run( con, ( (conindex[r], parser.getClusters(r), idx, r,)  for idx, r in enumerate(clusterid) ) )
     con.commit()
