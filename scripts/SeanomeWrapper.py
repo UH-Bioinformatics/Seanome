@@ -183,7 +183,7 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
                print >> o, "wait ${pidArr[@]}"
                proc = []
             print >> o, """pidArr=()"""	
-         genericBlock(o, """bash %s &; pidArr+=($!)"""%(cname))
+         genericBlock(o, """bash %s &\npidArr+=($!)"""%(cname))
          proc.append(1)
       if proc:
          print >> o, "wait ${pidArr[@]}"
@@ -198,7 +198,7 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
                   proc = []
                print >> o, """pidArr=()"""	
             minclust, maxclust = advanceNotice(oo, args, d[0])
-            genericBlock(oo, """bash %s %s %s &; pidArr+=($!)"""%(childname, minclust, maxclust))
+            genericBlock(oo, """bash %s %s %s &\npidArr+=($!)"""%(childname, minclust, maxclust))
             proc.append(1)
          if proc:
             print >> o, "wait ${pidArr[@]}"
