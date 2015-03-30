@@ -45,8 +45,8 @@ def minlenAndminSim(o, parameters, shift = False):
       larg = "$1"
       sarg = "$2"
 
-   mlen = parameters['findcsr'].get('minlen', "150")
-   msim = parameters['findcsr'].get('minsim', "0.94")
+   mlen = parameters.get('findcsr', {}).get('minlen', "150")
+   msim = parameters.get('findcsr', {}).get('minsim', "0.94")
    print >> o, "minlen=%s"%(mlen)
    print >> o, "minsim=%s"%(msim)
    print >> o, """if [ -z "%s" ]; then """%(larg)
@@ -176,23 +176,32 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
       print >> oo, "#!/bin/bash"
       clusterSizeHdr(oo)
    if args.jobs != 1:
+      proc = []
       for c, cname in enumerate(children_scripts):
          if c % args.jobs == 0:
             if c != 0:
                print >> o, "wait ${pidArr[@]}"
+               proc = []
             print >> o, """pidArr=()"""	
-         genericBlock(o, """bash %s &"""%(cname))
-      print >> o, "wait ${pidArr[@]}"
+         genericBlock(o, """bash %s &; pidArr+=($!)"""%(cname))
+         proc.append(1)
+      if proc:
+         print >> o, "wait ${pidArr[@]}"
       if multi:
+         proc = []
          for c, d in enumerate(passalongs):
             childname = CHILD_SCRIPT%(d[0], c, 2)
             d.extend(buildMakeSamScript(childname, d[0], threads))
             if c % args.jobs == 0:
                if c != 0:
                   print >> o, "wait ${pidArr[@]}"
+                  proc = []
                print >> o, """pidArr=()"""	
             minclust, maxclust = advanceNotice(oo, args, d[0])
-            genericBlock(oo, """bash %s %s %s &"""%(childname, minclust, maxclust))
+            genericBlock(oo, """bash %s %s %s &; pidArr+=($!)"""%(childname, minclust, maxclust))
+            proc.append(1)
+         if proc:
+            print >> o, "wait ${pidArr[@]}"
    else:	
       for cname in children_scripts:
          genericBlock(o, """bash %s"""%(cname))
