@@ -121,9 +121,9 @@ def renameFastq(oscript, addPrefix):
 
 
 def genericBlock(oscript, line):
-   print >> oscript, """echo -e "\\n"; date; echo -e "START %s" """%(line)
+   print >> oscript, """echo -e "\\n"; date; echo -e "START %s" """%(line.replace('"','\\"'))
    print >> oscript, line
-   print >> oscript, """echo -e "\\n"; date; echo -e "END %s\\n" """%(line)
+   print >> oscript, """echo -e "\\n"; date; echo -e "END %s\\n" """%(line.replace('"','\\"'))
 
 
 def buildMakeSamScript(childname, ident, threads):
@@ -366,11 +366,12 @@ def generateSingle(args):
       comboname = singleMergedInput(args, threads, passalongs)
       with open(CHILD_RUNNER%(3), "w") as oo:
          commonMainScript(oo, args, threads, False)
+         print >> oo, "cd csr"
          print >> oo, """NAME="%s" """%(comboname)
          clusterSizeHdr(oo)
          minclust, maxclust = advanceNotice(oo, args, "${NAME}")   
          minlenAndminSim(oo, parameters, True)    
-         genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME} -t ${THREADS} """%(minclust, maxclust))
+         genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME} -t ${THREADS} -s ${minlen} """%(minclust, maxclust))
          genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
          genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
       print >> o, "cd ${OLDDIR}"
