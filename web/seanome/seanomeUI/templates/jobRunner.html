@@ -19,8 +19,8 @@
   <div class = "col-md-3">
     <select id = "id_asm" name = "id_asm" class= "form-control input-sm" >
       <option value = "clust" selected = "selected" >Clustering</option>
-      <option value = "asm" >Assemble</option>
-      <option value = "preasm" >User Assembled (pre-assembled)</option>
+{#      <option value = "asm" >Assemble</option>#}
+{#      <option value = "preasm" >User Assembled (pre-assembled)</option>#}
     </select>
   </div>
 </div>
@@ -39,8 +39,8 @@
   <div class = "col-md-4">Do you wish to mask repeats?</div>
   <div class = "col-md-3">
     <select id = "id_repeats" name = "id_repeats" class= "form-control input-sm" >
+      <option value = "1" selected = "selected" >Yes</option>
       <option value = "0" selected = "selected" >No</option>
-      <option value = "1" >Yes</option>
     </select>
   </div>
 </div>
@@ -50,7 +50,7 @@
 </div>
 
 <div class ="form-group form-group-sm">
-  <div class = "col-md-4">Minimum CSR sequence length</div><div class = "col-md-3"><input id = "id_slen" name = "id_slen" class= "form-control input-sm" type = "number" min = "0" value = "100" /></div>
+  <div class = "col-md-4">Minimum CSR sequence length</div><div class = "col-md-3"><input id = "id_slen" name = "id_slen" class= "form-control input-sm" type = "number" min = "0" value = "150" /></div>
 </div>
 
 <div class ="form-group form-group-sm">

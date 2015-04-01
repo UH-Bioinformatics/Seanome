@@ -21,6 +21,35 @@ MAIN_SCRIPT="""primary_script.sh"""
 CHILD_SCRIPT="""%s_child_%s_step_%s.sh"""
 CHILD_RUNNER="""child_runner_script_%s.sh"""
 
+def bashargsparse(o, mlen = 150, msim = 0.94, onlyparams = False):
+   
+   print >> o, "minlen=%s"%(mlen)
+   print >> o, "minsim=%s"%(msim)
+   print >> o, "minClustSize=3"
+   print >> o, "maxClustSize=200"
+   if onlyparams:
+      return
+   print >> o, """while getopts ":c:z:l:s:" opt; do"""
+   print >> o, """case $opt in"""
+   print >> o, """c) minClustSize="${OPTARG}" """
+   print >> o, """;;"""
+   print >> o, """z) maxClustSize="{$OPTARG}" """
+   print >> o, """;;"""
+   print >> o, """l) minlen="${OPTARG}" """
+   print >> o, """;;"""
+   print >> o, """s) minsim="${OPTARG}" """
+   print >> o, """;;"""
+   print >> o, """\?)"""
+   print >> o, """echo "Invalid option: -${OPTARG}" >&2"""
+   print >> o, """exit 1"""
+   print >> o, """;;"""
+   print >> o, """:)"""
+   print >> o, """echo "Option -${OPTARG} requires an argument." >&2"""
+   print >> o, """exit 1"""
+   print >> o, """;;"""
+   print >> o, """esac"""
+   print >> o, """done"""
+
 
 def clusterSizeHdr(o):
    print >> o, "minClustSize=3"
@@ -129,10 +158,11 @@ def genericBlock(oscript, line):
 def buildMakeSamScript(childname, ident, threads):
    with open(childname, "w") as oscript:
       print >> oscript, "#!/bin/bash"
-      print >> oscript, """: ${1?"Usage: $0 min_coverage max_coverage"}"""
-      print >> oscript, """: ${2?"Usage: $0 min_coverage max_coverage"}"""
-      print >> oscript, """minClustSize=${1}"""
-      print >> oscript, """maxClustSize=${2}"""
+      bashargsparse(oscript)
+      #print >> oscript, """: ${1?"Usage: $0 min_coverage max_coverage"}"""
+      #print >> oscript, """: ${2?"Usage: $0 min_coverage max_coverage"}"""
+      #print >> oscript, """minClustSize=${1}"""
+      #print >> oscript, """maxClustSize=${2}"""
       print >> oscript , """cd "%s" """%(ident)
       genericBlock(oscript, """make_sam_with_cons.py -u  %(short)s.mapping_to_cons -q  %(short)s.fastq -c  %(short)s_clean.ids -f  %(short)s.final.contigs.masked -l ${minClustSize} -m ${maxClustSize} multiple -o "%(short)s" """%dict(short = ident) )
       genericBlock(oscript, """jellyfish count -m 21 -s 512M -t %(threads)s -C %(ref)s -o %(short)s.jelly"""%dict(threads=threads, ref="%s_pseudo_ref_parts.fasta"%(ident), short=ident ) )
@@ -174,7 +204,9 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
    if multi:
       oo = open(CHILD_RUNNER%(2), "w") 
       print >> oo, "#!/bin/bash"
-      clusterSizeHdr(oo)
+      bashargsparse(oo, onlyparams = args.advance)
+
+      #clusterSizeHdr(oo)
    if args.jobs != 1:
       proc = []
       for c, cname in enumerate(children_scripts):
@@ -198,7 +230,7 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
                   proc = []
                print >> o, """pidArr=()"""	
             minclust, maxclust = advanceNotice(oo, args, d[0])
-            genericBlock(oo, """bash %s %s %s &\npidArr+=($!)"""%(childname, minclust, maxclust))
+            genericBlock(oo, """bash %s -c %s -z %s &\npidArr+=($!)"""%(childname, minclust, maxclust))
             proc.append(1)
          if proc:
             print >> o, "wait ${pidArr[@]}"
@@ -210,7 +242,7 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
             childname = CHILD_SCRIPT%(d[0], c, 2)
             d.extend(buildMakeSamScript(childname, d[0], threads))
             minclust, maxclust = advanceNotice(oo, args, d[0])
-            genericBlock(oo, """bash %s %s %s"""%(childname, minclust, maxclust))
+            genericBlock(oo, """bash %s -c %s -z %s"""%(childname, minclust, maxclust))
    o.close()
    if multi:
       oo.close()
@@ -240,14 +272,17 @@ def clusterSection(oscript):
    genericBlock(oscript, """trackOverlaps.py -i1 ${NAME}_mod_1.out  -i2 ${NAME}.final.out  -o ${NAME}.mapping_to_cons""")
 
 
-def maskingSection(oscript):
-   genericBlock(oscript, """vsearch -maskfasta ${NAME}.final.contigs -hardmask  -output ${NAME}.final.contigs.masked -qmask dust -threads ${THREADS}""")
-   genericBlock(oscript, """sed -i -E '/>/!s/[acgt]/N/g' ${NAME}.final.contigs.masked""")
-   genericBlock(oscript, """grep -v '>'  ${NAME}.final.contigs.masked |  sed -e "1i>${NAME}" | seqret stdin ${NAME}.temp.pseudo.fasta""")
-   genericBlock(oscript, """build_lmer_table -l 12 -sequence ${NAME}.temp.pseudo.fasta -freq freqs_${NAME}""")
-   genericBlock(oscript, """RepeatScout -sequence ${NAME}.temp.pseudo.fasta -output repeats_${NAME}.fa -freq freqs_${NAME} -l 12""")
-   genericBlock(oscript, """usearch -usearch_local repeats_${NAME}.fa  -db ${NAME}.final.contigs.masked -id 0.80 -strand both -userfields query+target+id+qcov+tcov+qlo+qhi+tlo+thi -userout ${NAME}_bad.ids -query_cov 0.75  -threads ${THREADS} --maxaccepts 0 --maxrejects 0""")
-   genericBlock(oscript, """maskSeqs.py -i ${NAME}_bad.ids  -f ${NAME}.final.contigs.masked -o ${NAME}.final.contigs.masked_ && mv ${NAME}.final.contigs.masked_ ${NAME}.final.contigs.masked""")
+def maskingSection(oscript, skipmasking = False):
+   if not skipmasking: 
+      genericBlock(oscript, """vsearch -maskfasta ${NAME}.final.contigs -hardmask  -output ${NAME}.final.contigs.masked -qmask dust -threads ${THREADS}""")
+      genericBlock(oscript, """sed -i -E '/>/!s/[acgt]/N/g' ${NAME}.final.contigs.masked""")
+      genericBlock(oscript, """grep -v '>'  ${NAME}.final.contigs.masked |  sed -e "1i>${NAME}" | seqret stdin ${NAME}.temp.pseudo.fasta""")
+      genericBlock(oscript, """build_lmer_table -l 12 -sequence ${NAME}.temp.pseudo.fasta -freq freqs_${NAME}""")
+      genericBlock(oscript, """RepeatScout -sequence ${NAME}.temp.pseudo.fasta -output repeats_${NAME}.fa -freq freqs_${NAME} -l 12""")
+      genericBlock(oscript, """usearch -usearch_local repeats_${NAME}.fa  -db ${NAME}.final.contigs.masked -id 0.80 -strand both -userfields query+target+id+qcov+tcov+qlo+qhi+tlo+thi -userout ${NAME}_bad.ids -query_cov 0.75  -threads ${THREADS} --maxaccepts 0 --maxrejects 0""")
+      genericBlock(oscript, """maskSeqs.py -i ${NAME}_bad.ids  -f ${NAME}.final.contigs.masked -o ${NAME}.final.contigs.masked_ && mv ${NAME}.final.contigs.masked_ ${NAME}.final.contigs.masked""")
+   else:
+      genericBlock(oscript, """cp ${NAME}.final.contigs ${NAME}.final.contigs.masked""")
    genericBlock(oscript, """grep ">" ${NAME}.final.contigs.masked | sed 's/>//' |  sed 's/<unknown description>//' > ${NAME}_clean.ids""")         
 
 
@@ -263,7 +298,7 @@ def singleMergedInput(args, threads, passalongs):
       genericBlock(o, """vsearch -maskfasta ${NAME}.dedup.fasta --hardmask --output ${NAME}.masked.fasta --threads ${THREADS}""")
       clusterSection(o)
       genericBlock(o, """update_mapping.py -i ${NAME}.uc -m ${NAME}.mapping_to_cons""")
-      maskingSection(o)
+      maskingSection(o, args.skipmasking)
       genericBlock(o, """coverageInformation.py -s "${NAME}"  -c ${NAME}_clean.ids -m ${NAME}.mapping_to_cons""")
    return comboname
 
@@ -285,7 +320,7 @@ def generateMulti(args):
          genericBlock(oscript, """seqtk seq -A ${merged_fastq} > ${merged_fasta}""")
          genericBlock(oscript, """vsearch -maskfasta ${merged_fasta} --hardmask --output ${NAME}.masked.fasta --threads ${THREADS}""")
          clusterSection(oscript)
-         maskingSection(oscript)
+         maskingSection(oscript, args.skipmasking)
          genericBlock(oscript, """coverageInformation.py -s "${NAME}"  -c ${NAME}_clean.ids -m ${NAME}.mapping_to_cons""")
          print >> oscript, """cd .."""
 
@@ -299,7 +334,8 @@ def generateMulti(args):
       print >> o, "bash %s"%(CHILD_RUNNER%(3))
       with open(CHILD_RUNNER%(3), "w") as oo:
          commonMainScript(oo, args, threads, True)
-         minlenAndminSim(oo, parameters)
+         bashargsparse(oo,mlen = parameters.get('findcsr', {}).get('minlen', "150") , msim = parameters.get('findcsr', {}).get('minsim', "0.94"))
+         #minlenAndminSim(oo, parameters)
          print >> oo, "cd csr"
          for d in passalongs:
             genericBlock(oo, """mv ../%(parent)s/%(bam)s ../%(parent)s/%(bamidx)s cluster_bams/"""%dict(parent = d[0], bam = d[1], bamidx = d[2]) )
@@ -368,9 +404,10 @@ def generateSingle(args):
          commonMainScript(oo, args, threads, False)
          print >> oo, "cd csr"
          print >> oo, """NAME="%s" """%(comboname)
-         clusterSizeHdr(oo)
+         bashargsparse(oo,mlen = parameters.get('findcsr', {}).get('minlen', "150") , msim = parameters.get('findcsr', {}).get('minsim', "0.94"))
+         #clusterSizeHdr(oo)
          minclust, maxclust = advanceNotice(oo, args, "${NAME}")   
-         minlenAndminSim(oo, parameters, True)    
+         #minlenAndminSim(oo, parameters, True)    
          genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME} -t ${THREADS} -s ${minlen} """%(minclust, maxclust))
          genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
          genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
@@ -386,6 +423,7 @@ if __name__ == "__main__":
 	parser.add_argument('-j', '--jobs',  required = False, default = 1, type = int, help = "Number of jobs to run in parallel.  This will divide the number of threads, and undersubscribe in case of uneven division (default: 1)")
 	#parser.add_argument('-w', '--workdir', required = False, default =".", help = "Output directory to run job in (deafult: current directory)")
         parser.add_argument("-a", "--advance", action = "store_true", required = False, help = "generates coverage information and requires the use to provide input")
+        parser.add_argument("-s", "--skipmasking", action = "store_true", required = False, help = "Disable repeat masking")
         parser.set_defaults(workdir=".")
 
 	subparsers = parser.add_subparsers(dest='action', help='Available commands')
