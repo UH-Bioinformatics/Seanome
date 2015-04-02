@@ -56,10 +56,14 @@ $(document).ready(function(){
  var name = data[0],
  svgname = "chart_" + idx,
  dataname = "data_" +  name;
+ console.log(svgname);
+ console.log(data[1][data[1].length-1][0]);
+ maximum = Math.min(200, data[1][data[1].length-1][0]);
+ minimum = Math.max(3, data[1][0][0]);
  
- $("#filters").append("<svg id = '"+ svgname  + "'></svg>
-   <br /><label for ='"+ dataname + "_0'>Minimum cluster size for " + name +"</label> : <input name = '" +  dataname + "_0' id = '" +  dataname +"_0' type= 'text' value = '3' />
-   <br /><label for ='"+ dataname + "_1'>Maximum cluster size for " + name +"</label> : <input name = '" +  dataname + "_1' id = '" +  dataname +"_1' type= 'text' value =' 200' />");
+ $("#filters").append("<svg id = '"+ svgname  + "'></svg>"+
+"<br /><label for ='" + dataname + "_0'>Minimum cluster size for " + name + "</label> : <input name = '" +  dataname + "_0' id = '" +  dataname +"_0' type= 'text' value = '" + minimum + "' />"+
+"<br /><label for ='" + dataname + "_1'>Maximum cluster size for " + name + "</label> : <input name = '" +  dataname + "_1' id = '" +  dataname +"_1' type= 'text' value ='" + maximum + "' />");
    createChart(name, data[1], "#" + svgname, "#" + dataname);
    ++idx;				 
  })

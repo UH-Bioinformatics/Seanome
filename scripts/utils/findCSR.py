@@ -1,3 +1,4 @@
+import os
 import re
 import subprocess
 import sys
@@ -6,12 +7,18 @@ from Bio import AlignIO
 import tempfile
 from Bio import SeqIO
 import shutil
-
+import cStringIO as StringIO
 from sqlitedb import QUERY_CSR_AS_SEQS
+from threadpool import ProducerConsumer
+from Bio.Align.Applications import MuscleCommandline
+
 
 HMM_CMD = """nhmmer --cpu 1 --qformat fasta - %(genome)s """
 hmmer_hit_re = re.compile(r'score\s*bias\s*Evalue\s*hmmfrom\s*hmm\s*to\s*alifrom')
 hmmer_query_length = re.compile("Query:\s*ali\s*\[M=(\d+)")
+def remove_readonly(func, path, excinfo):
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 
 def find_csr(args, con):
@@ -24,8 +31,9 @@ def find_csr(args, con):
    worker = ProducerConsumer(args, args.threads, find_csrProducer, find_csrConsumer)
    worker.run(con, ( (c, args.genome, genomeseq, args.min_csr_len, args.min_csr_sim) for c in cur) )
    # DLS cleanup after mkdtemp.  It is the Users responsibility!  
+   #shutil.rmtree(tmpDir, onerror = remove_readonly)
    try:
-      shutil.rmtree(tmpDir, onerror = remove_readonly)
+       shutil.rmtree(tmpDir, onerror = remove_readonly)
    except:
       pass
 
@@ -41,11 +49,13 @@ def find_csrProducer(payload):
                             shell=(sys.platform!="win32"),
                             close_fds = True)
    hitfile, hiterr = child.communicate(seqs)
-   for line in hitfile.splitlines():
+   hitfile  = StringIO.StringIO(hitfile)
+   for line in hitfile:
       line = line.strip()
       if hmmer_query_length.search(line):
          length = hmmer_query_length.search(line).groups()[0]
       elif hmmer_hit_re.search(line):
+         
          line = hitfile.next()
          line = hitfile.next()
          data = line.strip().split()

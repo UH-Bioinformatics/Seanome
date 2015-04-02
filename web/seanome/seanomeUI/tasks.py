@@ -21,7 +21,7 @@ from redis_semaphore import Semaphore
 
 import json
 import datetime
-
+import yaml
 
 @shared_task
 def cleanupSeanome(removeOlder):
@@ -83,32 +83,32 @@ def seanomeGO(workdir, jid, idmap):
         except:
             pass
 
-   with open(os.path.join(workdir, "config.yaml"), "w") as ymout:
-       yaml.dump(dict(libraries=libs, coverage=coverageFiles), ymout)
-   # This will generate --ALL-- scripts that are requied to run the seanome pipeline.  instead of using the primary script, we will utilize the intermediate scripts
+    with open(os.path.join(workdir, "config.yaml"), "w") as ymout:
+        yaml.dump(dict(libraries=libs, coverage=coverageFiles), ymout)
+    # This will generate --ALL-- scripts that are requied to run the seanome pipeline.  instead of using the primary script, we will utilize the intermediate scripts
        
 
-   if(sparams.get('repeatmask', 0) == 1):
-       os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 multiple"%( os.path.join(workdir, "config.yaml") , os.path.join(workdir, "seanome.db3") , settings.WORK_THREADS))
-   else:
-       os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 -s multiple"%( os.path.join(workdir, "config.yaml") , os.path.join(workdir, "seanome.db3") , settings.WORK_THREADS))
+    if(sparams.get('repeatmask', 0) == 1):
+        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 multiple"%( os.path.join(workdir, "config.yaml") , os.path.join(workdir, "seanome.db3") , settings.WORK_THREADS))
+    else:
+        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 -s multiple"%( os.path.join(workdir, "config.yaml") , os.path.join(workdir, "seanome.db3") , settings.WORK_THREADS))
 
-   # used in an attempt to limit how many threads of processing a task spins up at any given time.
-   rdis_semaphore = Semaphore(Redis(), count = settings.REDIS_THREADS, namespace = 'SeanomeWorkers')
-   rdis_semaphore.acquire()       
-   if not jobj.interrupt:
-       os.system("""bash primary_script.sh >> log.out 2>> log.err""")
-       jobj = job.objects.get(pk = jid)
-       jobj.stage = STAGES_REVERSE['done-s2']
-       jobj.save()       
-   else:
-       os.system("""bash child_runner_script_1.sh  >> log.out 2>> log.err """)
-       jobj = job.objects.get(pk = jid)
-       jobj.stage = STAGES_REVERSE['done-s1']
-       jobj.save()
+    # used in an attempt to limit how many threads of processing a task spins up at any given time.
+    rdis_semaphore = Semaphore(Redis(), count = settings.REDIS_THREADS, namespace = 'SeanomeWorkers')
+    rdis_semaphore.acquire()       
+    if not jobj.interrupt:
+        os.system("""bash primary_script.sh >> log.out 2>> log.err""")
+        jobj = job.objects.get(pk = jid)
+        jobj.stage = STAGES_REVERSE['done-s2']
+        jobj.save()       
+    else:
+        os.system("""bash child_runner_script_1.sh  >> log.out 2>> log.err """)
+        jobj = job.objects.get(pk = jid)
+        jobj.stage = STAGES_REVERSE['done-s1']
+        jobj.save()
 
-   rdis_semaphore.release()
-   return True
+    rdis_semaphore.release()
+    return True
 
 
 @shared_task
@@ -138,9 +138,8 @@ def seanomeGOstage2(workdir, jid, cutoffs):
         rdis_semaphore.release()
 
     rdis_semaphore.acquire()
-    os.system("""bash child_runner_script_3.sh -l %s -s %s >> log.out 2>> log.err """%( str(params.get('minlen',settings.MIN_SEQ_LEN)) , str(params.get('sim', settings.MIN_SEQ_SIM) )
+    os.system("""bash child_runner_script_3.sh -l %s -s %s >> log.out 2>> log.err """%( str(sparams.get('minlen',settings.MIN_SEQ_LEN)) , str(sparams.get('sim', settings.MIN_SEQ_SIM) ) ) )
     rdis_semaphore.release()
-
     jobj = job.objects.get(pk = jid)
     jobj.stage = STAGES_REVERSE['done-s2']
     jobj.save()

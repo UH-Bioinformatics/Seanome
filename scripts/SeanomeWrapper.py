@@ -33,7 +33,7 @@ def bashargsparse(o, mlen = 150, msim = 0.94, onlyparams = False):
    print >> o, """case $opt in"""
    print >> o, """c) minClustSize="${OPTARG}" """
    print >> o, """;;"""
-   print >> o, """z) maxClustSize="{$OPTARG}" """
+   print >> o, """z) maxClustSize="${OPTARG}" """
    print >> o, """;;"""
    print >> o, """l) minlen="${OPTARG}" """
    print >> o, """;;"""
@@ -346,9 +346,11 @@ def generateMulti(args):
          # TODO: Need to insert an ordering function gives us the order in which seeds and and other things are processed...
          if len(passalongs) >= 2:
             genericBlock(oo, """findBestOrder_quick.py kmer_counts _kmer.filter search.order""")
-            print >> oo, "declare -A mapping;"
+            print >> oo, "declare -A mapping_full;"
+            print >> oo, "declare -A mapping_part;"
             for d in passalongs:
-               print >> oo, """mapping["%s"]="%s" """%(d[0], "../%s/%s"%(d[0], d[3]))
+               print >> oo, """mapping_part["%s"]="%s" """%(d[0], "../%s/%s"%(d[0], d[3]))
+               print >> oo, """mapping_full["%s"]="%s" """%(d[0], "../%s/%s"%(d[0], d[4]))
                
             print >> oo, """ordering=()"""
             print >> oo, """i=0"""
@@ -357,11 +359,11 @@ def generateMulti(args):
             print >> oo, """ ordering[$i]=${line}"""
             print >> oo, """ i=$(($i+1))"""
             print >> oo, """done < search.order"""
-            genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} seed_csr -i1 ${mapping[${ordering[0]}]} -n1 ${ordering[0]} -i2 ${mapping[${ordering[1]}]} -n2 ${ordering[1]}  -l ${minlen} -s ${minsim} """)
+            genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} seed_csr -i1 ${mapping_part[${ordering[0]}]} -n1 ${ordering[0]} -i2 ${mapping_part[${ordering[1]}][0]} -n2 ${ordering[1]}  -l ${minlen} -s ${minsim} """)
             if len(passalongs) > 2:
                print >> oo, """for i in {2..%s}"""%((len(passalongs)-1))
                print >> oo, """do"""
-               genericBlock(oo, """ Seanome.py -t ${THREADS} -d ${DB_NAME} find_csr -g ${mapping[${ordering[$i]}]} -l ${minlen} -s ${minsim} """%dict(parent = d[0], ref = d[4]))
+               genericBlock(oo, """ Seanome.py -t ${THREADS} -d ${DB_NAME} find_csr -g ${mapping_full[${ordering[$i]}][1]} -l ${minlen} -s ${minsim} """%dict(parent = d[0], ref = d[4]))
                print >>oo, """done"""
          else:
             print >> sys.stderr, "Only 1 library is present.. Require at least 2 libraries!"

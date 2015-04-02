@@ -29,6 +29,11 @@ import math
 from collections import defaultdict, Counter
 from zipstream import *
 import sqlite3 
+import yaml
+import itertools
+import cStringIO as StringIO
+
+from Bio import AlignIO
 
 
 # Create your views here.
@@ -166,7 +171,7 @@ def filterLevel(request, jid, jobj, template):
         return None 
     filestats = []
     maxsize = 0
-    config = yaml.load(open(os.path.join(workdir, "config.yaml")))
+    config = yaml.load(open(os.path.join(jobfolder, "config.yaml")))
     for f in config['coverage']:
         jstr = json.loads(open(f).read())
         convert = []
@@ -210,42 +215,48 @@ def completedJob(request, jid, template):
         return HttpResponseRedirect(reverse('runjob', args = [jid]))
 
     toplvl = os.path.join(settings.JOBDIR, jid)
-    con = sqlite3.connect(os.path.join(toplvl, "seanome.db3"), check_same_thread=False)
+    con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)
     
-    infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
+    #infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
     tally = []
     for k, v in Counter([l[1] for l in con.execute("""SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID;""")]).iteritems():
         tally.append( dict(label = k, v= int(v), value = max(math.log10(int(v)), math.log10(float(v)+0.5)), url = reverse("filterResults", args = [jid, k] ) ) )
-    genomes = [ q.strip() for q in open(os.path.join(toplvl, "csr", "serach.order")) ]
+    genomes = [ q.strip() for q in open(os.path.join(toplvl, "csr", "search.order")) ]
     numgenomes = len(genomes)
-    genomes_sorted = [ (i, len(SeqIO.parse(os.path.join(toplvl, settings.UCLUST_TO_SAM_DIR, "%s_pseudo_ref.fasta"%(i)), "fasta").next()) , ) for i in sorted(genomes)]
+    genomes_sorted = [ (i, len(SeqIO.parse(os.path.join(toplvl, i, "%s_pseudo_ref.fasta"%(i)), "fasta").next()) , ) for i in sorted(genomes)]
     # we have finished everythign.. we need to collect some data to display out to the user...
     return render_to_response(template, dict(jobj = jobj, numgenomes = numgenomes, genomelens = genomes_sorted, ordering = genomes, data = tally, tally= json.dumps(tally, separators=(',',':') ) ), context_instance = RequestContext(request) )
 
 
 def ajaxGetSNPs(request, jid, ident):
     toplvl = os.path.join(settings.JOBDIR, jid)
-    SNPdir = os.path.join(toplvl, settings.SNP_DIR, "%s.dat"%(ident))
-    return HttpResponse(open(SNPdir).read(), content_type = "application/json")    
+    con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)
+    jsondat = []
+    for i in con.execute("""SELECT json FROM trimmed_modvcf WHERE fileID = ?;""", (ident,) ):
+        jsondat = i[0]
+    return HttpResponse(jsondat, content_type = "application/json")    
 
     
 def ajaxGetMSA(request, jid, ident, clean):
+    QUERY_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM csr GROUP BY fileID"""
+    QUERY_TRIMMED_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM trimmed_csr GROUP BY fileID"""
     #if not request.is_ajax():
     #    return
     toplvl = os.path.join(settings.JOBDIR, jid)
-    MSAdir = os.path.join(toplvl, settings.MSA_DIR)
+    con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)     
     if clean == '1':
-        #MSAdir = os.path.join(MSAdir, "07_trimmed_pileup", "%s.fasta"%(ident))
-        #if not os.path.exists(MSAdir):
-        MSAdir = os.path.join(MSAdir, "03_trimAL", "%s.fasta"%(ident))
-        if not os.path.exists(MSAdir):
-            MSAdir = os.path.join(os.path.join(toplvl, settings.MSA_DIR), "03_trimAL", "%s.msa.fasta"%(ident))
-        
+        data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN consensus AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = QUERY_TRIMMED_CSR_AS_SEQS), (ident,) )
     elif clean == '0':
-        jobj = job.objects.get(pk = jid)
-        data = json.loads(jobj.data)
-        MSAdir = os.path.join(data['aln'], ident)
-    return HttpResponse(open(MSAdir).read(), content_type = "application/fasta")    
+        data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN consensus AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = QUERY_CSR_AS_SEQS), (ident,) )
+
+    rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), "\n".join([">%s\n%s"%(i,s,)  for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ), ) for r in data ]
+    
+    fastadata = "%s%s"%(rows[0][1], rows[0][2])
+    #fdat= StringIO.StringIO(fastadata)
+    #alignment = AlignIO.read(fdat, "fasta")
+    
+    return HttpResponse(fastadata, content_type = "application/fasta")    
+
 
 
 
@@ -256,8 +267,11 @@ def viewAlignments(request, jid, count, template):
 
     count = int(count)
     toplvl = os.path.join(settings.JOBDIR, jid)
-    infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
-    tally = [ l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count]
+    #infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
+    con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)    
+    tally = [ (row[0], row[1],) for row in con.execute("""SELECT B.name, B.id FROM files as B  JOIN ( SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID ) AS A ON (A.fileID = B.id) WHERE size = ? ;""", (count,) ) ]
+
+    #tally = [ l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count]
     tally = natsort.natsorted(tally)
     return render_to_response(template, dict(jobj = jobj, count = count, showoptions = True,
                                              tally = tally), context_instance = RequestContext(request) )
@@ -270,23 +284,16 @@ def resultFilter(request, jid, count, template):
 
     count = int(count)
     toplvl = os.path.join(settings.JOBDIR, jid)
-    infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
-
-    tally = [ l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count]
-
-    stally = set(tally)
+    # get the file names of the csrs that have this particular
+    con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)    
     prebucket = defaultdict(int)
     postbucket = defaultdict(int)
-    for pre, post in zip(open(os.path.join(infodir, "pre_trim.cov")), open(os.path.join(infodir, "post_trim.cov")) ):
-        pre = pre.split("\t")
-        post = post.split("\t")
-        if pre[0] in stally:
-            v = int(json.loads(pre[1])[0][1])
-            prebucket[v] += 1
-        if post[0] in stally:
-            v = int(json.loads(post[1])[0][1])
-            postbucket[v] += 1
-
+    for row in con.execute("""SELECT D.name, C.sam, E.sam FROM  (SELECT B.id, B.name FROM files as B  JOIN ( SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID ) AS A ON (A.fileID = B.id) WHERE size = ?) AS D JOIN  inferSAM AS C ON (C.fileID = D.id) JOIN trimmed_inferSAM as E ON (E.fileID = D.id);""", (count,) ) :
+        # TODO: need to added coverage values to tables
+        precount = len([1 for r in row[1].splitlines() if not r.startswith("@") ])       
+        postcount = len([1 for r in row[2].splitlines() if not r.startswith("@") ])
+        prebucket[precount] += 1
+        postbucket[postcount] += 1
     total = 0
     prebrkcm = {}
     for k in sorted(prebucket.keys(), reverse = True):
@@ -298,18 +305,14 @@ def resultFilter(request, jid, count, template):
     for k in sorted(postbucket.keys(), reverse = True):
         total += postbucket[k]
         postbrkcm[k] = total
-    o = open("/tmp/data", "w")
-    o.write(str(postbrkcm))
-    o.close()
+        #o = open("/tmp/data", "w")
+    #o.write(str(postbrkcm))
+    #o.close()
 
     precovall = sorted(prebrkcm.iteritems(), key = lambda x: x[0])
     postcovall = sorted(postbrkcm.iteritems(), key = lambda x: x[0])
 
-    #precovall = sorted(prebucket.iteritems(), key = lambda x: x[0])
-    #postcovall = sorted(postbucket.iteritems(), key = lambda x: x[0])
-
     return render_to_response(template, dict(jobj = jobj, count = count, showoptions = True,
-                                             #tally = tally,
                                              prebreak = json.dumps( precovall, separators=(',',':') ),
                                              postbreak = json.dumps( postcovall, separators=(',',':') ),
                                              prebrkcm = json.dumps( prebrkcm, separators=(',',':') ),
