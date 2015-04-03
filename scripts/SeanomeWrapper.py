@@ -14,12 +14,16 @@ libraries:
   IGA: 
     - /full/path/to/IGA_forward.fastq
     - /full/path/to/IGA_reverse.fastq
-    
+
+findcsr:
+  - minlen: 150
+  - minsim: 0.94
+   
 """
 
 MAIN_SCRIPT="""primary_script.sh"""
-CHILD_SCRIPT="""%s_child_%s_step_%s.sh"""
-CHILD_RUNNER="""child_runner_script_%s.sh"""
+SAMPLE_SCRIPT="""%s_sample_%s_step_%s.sh"""
+SAMPLE_RUNNER="""sample_runner_script_%s.sh"""
 
 def bashargsparse(o, mlen = 150, msim = 0.94, onlyparams = False):
    
@@ -199,10 +203,10 @@ def commonMainScript(o, args, threads, clustered, basic = False):
 
 
 def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
-   o = open(CHILD_RUNNER%(1), "w")
+   o = open(SAMPLE_RUNNER%(1), "w")
    print >> o, "#!/bin/bash"
    if multi:
-      oo = open(CHILD_RUNNER%(2), "w") 
+      oo = open(SAMPLE_RUNNER%(2), "w") 
       print >> oo, "#!/bin/bash"
       bashargsparse(oo, onlyparams = args.advance)
 
@@ -222,7 +226,7 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
       if multi:
          proc = []
          for c, d in enumerate(passalongs):
-            childname = CHILD_SCRIPT%(d[0], c, 2)
+            childname = SAMPLE_SCRIPT%(d[0], c, 2)
             d.extend(buildMakeSamScript(childname, d[0], threads))
             if c % args.jobs == 0:
                if c != 0:
@@ -239,7 +243,7 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1):
          genericBlock(o, """bash %s"""%(cname))
       if multi:
          for c, d in enumerate(passalongs):
-            childname = CHILD_SCRIPT%(d[0], c, 2)
+            childname = SAMPLE_SCRIPT%(d[0], c, 2)
             d.extend(buildMakeSamScript(childname, d[0], threads))
             minclust, maxclust = advanceNotice(oo, args, d[0])
             genericBlock(oo, """bash %s -c %s -z %s"""%(childname, minclust, maxclust))
@@ -288,7 +292,7 @@ def maskingSection(oscript, skipmasking = False):
 
 def singleMergedInput(args, threads, passalongs):
    comboname = "_".join(passalongs)
-   with open(CHILD_RUNNER%(2), "w") as o:
+   with open(SAMPLE_RUNNER%(2), "w") as o:
       commonMainScript(o, args, threads, False)
       print >> o, "cd csr"
       print >> o, """NAME="%s" """%(comboname)
@@ -311,7 +315,7 @@ def generateMulti(args):
    passalongs = []		
    for ident, pairs in parameters['libraries'].iteritems():
       ident = ident.replace("_","-").replace(" ","-")
-      scriptname = os.path.join(args.workdir, CHILD_SCRIPT%(ident, cid, 1))
+      scriptname = os.path.join(args.workdir, SAMPLE_SCRIPT%(ident, cid, 1))
       cid += 1
       children_scripts.append(scriptname)
       with open(scriptname, "w") as oscript:
@@ -329,10 +333,10 @@ def generateMulti(args):
    with open(MAIN_SCRIPT, "w") as o:
       commonMainScript(o, args, threads, True)  
 
-      print >> o, "bash %s"%(CHILD_RUNNER%(1))
-      print >> o, "bash %s"%(CHILD_RUNNER%(2))
-      print >> o, "bash %s"%(CHILD_RUNNER%(3))
-      with open(CHILD_RUNNER%(3), "w") as oo:
+      print >> o, "bash %s"%(SAMPLE_RUNNER%(1))
+      print >> o, "bash %s"%(SAMPLE_RUNNER%(2))
+      print >> o, "bash %s"%(SAMPLE_RUNNER%(3))
+      with open(SAMPLE_RUNNER%(3), "w") as oo:
          commonMainScript(oo, args, threads, True)
          bashargsparse(oo,mlen = parameters.get('findcsr', {}).get('minlen', "150") , msim = parameters.get('findcsr', {}).get('minsim', "0.94"))
          #minlenAndminSim(oo, parameters)
@@ -386,7 +390,7 @@ def generateSingle(args):
    passalongs = []		
    for ident, pairs in parameters['libraries'].iteritems():
       ident = ident.replace("_","-").replace(" ","-")	
-      scriptname = os.path.join(args.workdir, CHILD_SCRIPT%(ident, cid, 1))
+      scriptname = os.path.join(args.workdir, SAMPLE_SCRIPT%(ident, cid, 1))
       cid += 1
       children_scripts.append(scriptname)
       with open(scriptname, "w") as oscript:
@@ -398,11 +402,11 @@ def generateSingle(args):
    threads = args.threads
    with open(MAIN_SCRIPT, "w") as o:
       commonMainScript(o, args, threads, False)
-      print >> o, "bash %s"%(CHILD_RUNNER%(1))
-      print >> o, "bash %s"%(CHILD_RUNNER%(2))
-      print >> o, "bash %s"%(CHILD_RUNNER%(3))
+      print >> o, "bash %s"%(SAMPLE_RUNNER%(1))
+      print >> o, "bash %s"%(SAMPLE_RUNNER%(2))
+      print >> o, "bash %s"%(SAMPLE_RUNNER%(3))
       comboname = singleMergedInput(args, threads, passalongs)
-      with open(CHILD_RUNNER%(3), "w") as oo:
+      with open(SAMPLE_RUNNER%(3), "w") as oo:
          commonMainScript(oo, args, threads, False)
          print >> oo, "cd csr"
          print >> oo, """NAME="%s" """%(comboname)
@@ -424,7 +428,7 @@ if __name__ == "__main__":
 	parser.add_argument('-t', '--threads',  required = False, default = 1, type = int, help = "total number of threads to utilize (default: 1)")
 	parser.add_argument('-j', '--jobs',  required = False, default = 1, type = int, help = "Number of jobs to run in parallel.  This will divide the number of threads, and undersubscribe in case of uneven division (default: 1)")
 	#parser.add_argument('-w', '--workdir', required = False, default =".", help = "Output directory to run job in (deafult: current directory)")
-        parser.add_argument("-a", "--advance", action = "store_true", required = False, help = "generates coverage information and requires the use to provide input")
+        #parser.add_argument("-a", "--advance", action = "store_true", required = False, help = "generates coverage information and requires the use to provide input")
         parser.add_argument("-s", "--skipmasking", action = "store_true", required = False, help = "Disable repeat masking")
         parser.set_defaults(workdir=".")
 

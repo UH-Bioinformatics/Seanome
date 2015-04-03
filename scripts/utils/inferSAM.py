@@ -37,7 +37,7 @@ def inferSAMConsumer(con, returndata):
         newcon = dat[5]
         curs.execute("""INSERT INTO inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (ident, sam, sqlite3.Binary(bam), sqlite3.Binary(bamidx),))
         curs.execute("""UPDATE consensus SET sequence = ? WHERE fileID = ?;""", (newcon, ident, ) )
-        curs.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (ident, g,) for g in groups )  )
+        curs.executemany("""INSERT INTO groups(fileID, groupid, species, coverage) VALUES(?,?,?,?);""", ( (ident, g[0], g[1], g[2]) for g in groups )  )
     con.commit()
 
 
@@ -46,7 +46,7 @@ def inferSAM(args, con):
     curs.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS 
                     FROM ( %(csr_as_seqeuences)s ) AS A 
                     JOIN consensus AS B ON (A.fileID = B.fileID);"""%dict(csr_as_seqeuences = QUERY_CSR_AS_SEQS) )
-    rows = (  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = CONSENSUS_NAME, seq = r[1]), "\n".join([">%s\n%s"%(i,s,)        for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
+    rows = (  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = CONSENSUS_NAME, seq = r[1]), "\n".join([">%s\n%s"%(i,s,) for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ) , sd,) for r, sd in 
               itertools.izip(curs, itertools.repeat(str(args.split_sam_dir)) )    )
 
     worker = ProducerConsumer(args, args.threads, inferSAMProducer, inferSAMConsumer)
@@ -197,7 +197,7 @@ class SAM_BUILDER():
 
     def processSingleRef(self, samfile, name, refStart, refEnd, refSeq, isReversed, combinedOut, header, readgroupID):
         myReads = samfile.fetch(name, refStart, refEnd)
-
+        coverage = 0
         for read in (q for q in myReads if not q.is_unmapped):
             startInRef, startInRead = self.computeStartPositions(read, refStart, refEnd, isReversed)
             #print refSeq
@@ -295,7 +295,7 @@ class SAM_BUILDER():
 
             compactCigar = self.compressCigar(newCigarString)
             samData = self.generateSamInfo(name, read, newReadString, compactCigar, shiftedStartRef, 0, newQualString, readgroupID)
-
+            
             #DEBUGGING
             #print "refStr : %s" % refString
             #print "tempStr: %s" % tempString
@@ -303,7 +303,8 @@ class SAM_BUILDER():
             #print "cmpCigr: %s\n" % compactCigar
             
             combinedOut.write(samData) 
-
+            coverage += 1
+        return coverage
 
     def generateReadGroups(self, groups):
         RG_template = { 'ID': '',
@@ -312,6 +313,7 @@ class SAM_BUILDER():
                          'PL': 'ILLUMINA'} # Platform/technology used to produce the reads. 
         readgroups = []
         idtomap = {}
+        groupdata = {}
         for idx, g in enumerate(groups):
             rgrp = RG_template.copy()
             rgrp['ID'] = "GROUP-"+str(idx + 1)
@@ -319,7 +321,8 @@ class SAM_BUILDER():
             rgrp['SM'] = g
             readgroups.append(rgrp)
             idtomap[g] = "GROUP-"+str(idx + 1)
-        return readgroups, idtomap
+            groupdata[g] = [idtomap[g], g]
+        return readgroups, idtomap, groupdata
 
 
     def updateConsensus(self, bamfile):
@@ -356,7 +359,8 @@ class SAM_BUILDER():
 
         refs = [ (r.id, len(r.seq) ) for r in  SeqIO.parse(StringIO.StringIO(self.data), "fasta")]
 
-        readgroups, refIDToReadgroup = self.generateReadGroups(msaInfo.keys())
+        readgroups, refIDToReadgroup, groupdata = self.generateReadGroups(msaInfo.keys())
+
         header = dict(HD = dict(VN = '1.0'), SQ = [ {'LN': refs[0][1], 'SN': refs[0][0] }], RG = readgroups)
         outfile = pysam.Samfile(samout, "wh", header = header)       
         for refName, refVals in msaInfo.iteritems():
@@ -365,8 +369,10 @@ class SAM_BUILDER():
                 isReversed = False
             samid = os.path.join(self.samdir,"%s.bam" % refName )
             samfile = pysam.Samfile(samid, "rb" )        
-            self.processSingleRef(samfile, refName, refVals[0], refVals[1], refVals[2], isReversed, 
+
+            coverage = self.processSingleRef(samfile, refName, refVals[0], refVals[1], refVals[2], isReversed, 
                                   outfile, header, refIDToReadgroup[refName])
+            groupdata[refName].append(coverage)
             samfile.close()
         outfile.close()
 
@@ -397,4 +403,4 @@ class SAM_BUILDER():
 
         newcon = self.updateConsensus(bamout)
         removeFiles([samout, bamout, "%s.bai"%(bamout)])
-        return samdat, bamdat, bamidxdat, self.name, refIDToReadgroup.values(), newcon
+        return samdat, bamdat, bamidxdat, self.name, groupdata.values(), newcon

@@ -19,6 +19,7 @@ from django.db import connection, close_old_connections
 from redis import Redis
 from redis_semaphore import Semaphore
 
+import sqlite3
 import json
 import datetime
 import yaml
@@ -48,6 +49,12 @@ def seanomeBad(directory):
     return True
 
 
+def getSizes(workdir):
+    createdir(os.path.join(workdir, "concat_trimmed"))
+    con = sqlite3.connect(os.path.join(workdir, "csr", "seanome.db3"), check_same_thread=False)
+    return [c[0] for c in  con.execute("""SELECT distinct count(*) as 'size' FROM trimmed_csr GROUP BY fileID;""")] 
+    
+
 @shared_task
 def seanomeGO(workdir, jid, idmap):
     jobj = job.objects.get(pk = jid)
@@ -59,10 +66,6 @@ def seanomeGO(workdir, jid, idmap):
     os.system("""chmod -R 755 %s"""%(workdir))
     setupUserEnv(workdir)
     close_old_connections()
-
-    # just in case something very odd occurs and the script fails to make the directories...
-    os.system("""chmod -R 755 %s"""%(workdir))
-
     
     tasks = []
     libs = {}
@@ -89,20 +92,24 @@ def seanomeGO(workdir, jid, idmap):
        
 
     if(sparams.get('repeatmask', 0) == 1):
-        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 multiple"%( os.path.join(workdir, "config.yaml") , os.path.join(workdir, "seanome.db3") , settings.WORK_THREADS))
+        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 multiple"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
     else:
-        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 -s multiple"%( os.path.join(workdir, "config.yaml") , os.path.join(workdir, "seanome.db3") , settings.WORK_THREADS))
+        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 -s multiple"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
 
     # used in an attempt to limit how many threads of processing a task spins up at any given time.
     rdis_semaphore = Semaphore(Redis(), count = settings.REDIS_THREADS, namespace = 'SeanomeWorkers')
     rdis_semaphore.acquire()       
+    catdir = os.path.join(workdir, "concat_trimmed")
     if not jobj.interrupt:
         os.system("""bash primary_script.sh >> log.out 2>> log.err""")
+        for c in getSizes(workdir):
+            os.system("""combineAlignment.py -d %(dbase)s -c %(cnt)s -o %(outprefix)s """%dict(dbase =  os.path.join(workdir, "csr", "seanome.db3"), cnt = c, outprefix = os.path.join(catdir, "%s_concat"%(c)) ) )
+
         jobj = job.objects.get(pk = jid)
         jobj.stage = STAGES_REVERSE['done-s2']
         jobj.save()       
     else:
-        os.system("""bash child_runner_script_1.sh  >> log.out 2>> log.err """)
+        os.system("""bash sample_runner_script_1.sh  >> log.out 2>> log.err """)
         jobj = job.objects.get(pk = jid)
         jobj.stage = STAGES_REVERSE['done-s1']
         jobj.save()
@@ -123,7 +130,7 @@ def seanomeGOstage2(workdir, jid, cutoffs):
     # used in an attempt to limit how many threads of processing a task spins up at any given time.
     rdis_semaphore = Semaphore(Redis(), count = settings.REDIS_THREADS, namespace = 'SeanomeWorkers')
 
-    for l in open("child_runner_script_2.sh"):
+    for l in open("sample_runner_script_2.sh"):
         if l.startswith("bash "):
             rdis_semaphore.acquire()
             l = l.strip().split()
@@ -138,7 +145,10 @@ def seanomeGOstage2(workdir, jid, cutoffs):
         rdis_semaphore.release()
 
     rdis_semaphore.acquire()
-    os.system("""bash child_runner_script_3.sh -l %s -s %s >> log.out 2>> log.err """%( str(sparams.get('minlen',settings.MIN_SEQ_LEN)) , str(sparams.get('sim', settings.MIN_SEQ_SIM) ) ) )
+    os.system("""bash sample_runner_script_3.sh -l %s -s %s >> log.out 2>> log.err """%( str(sparams.get('minlen',settings.MIN_SEQ_LEN)) , str(sparams.get('sim', settings.MIN_SEQ_SIM) ) ) )
+    catdir = os.path.join(workdir, "concat_trimmed")
+    for c in getSizes(workdir):
+        os.system("""combineAlignment.py -d %(dbase)s -c %(cnt)s -o %(outprefix)s """%dict(dbase =  os.path.join(workdir, "csr", "seanome.db3"), cnt = c, outprefix = os.path.join(catdir, "%s_concat"%(c)) ) )
     rdis_semaphore.release()
     jobj = job.objects.get(pk = jid)
     jobj.stage = STAGES_REVERSE['done-s2']
@@ -148,6 +158,7 @@ def seanomeGOstage2(workdir, jid, cutoffs):
 
 def setupUserEnv(workdir = None):
     if workdir:
+        createdir(workdir)
         os.chdir(workdir)
     os.environ['PATH'] += os.pathsep + settings.USER_BIN
 

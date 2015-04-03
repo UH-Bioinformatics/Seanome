@@ -35,6 +35,19 @@ import cStringIO as StringIO
 
 from Bio import AlignIO
 
+# also in the utils folder but that is located somewhere else..
+QUERY_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM csr GROUP BY fileID"""
+QUERY_TRIMMED_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM trimmed_csr GROUP BY fileID"""
+
+def getSpecificFilesByMemberCount(con, count):
+    return con.execute("""SELECT B.name, B.id FROM files as B  JOIN ( SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID ) AS A ON (A.fileID = B.id) WHERE size = ? ;""", (count,))
+
+
+def getMemberCounts(con, sizeonly = False):
+    if not sizeonly:
+        return con.execute("""SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID;""")
+    else:
+        return con.execute("""SELECT count(*) as 'size' FROM groups GROUP BY fileID;""")
 
 # Create your views here.
 def createSFTPUser():
@@ -218,14 +231,14 @@ def completedJob(request, jid, template):
     con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)
     
     #infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
-    tally = []
-    for k, v in Counter([l[1] for l in con.execute("""SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID;""")]).iteritems():
-        tally.append( dict(label = k, v= int(v), value = max(math.log10(int(v)), math.log10(float(v)+0.5)), url = reverse("filterResults", args = [jid, k] ) ) )
+    graphdata = []
+    for k, v in Counter([l[0] for l in getMemberCounts(con, True) ]).iteritems():
+        graphdata.append( dict(label = k, v= int(v), value = max(math.log10(int(v)), math.log10(float(v)+0.5)), url = reverse("filterResults", args = [jid, k] ) ) )
     genomes = [ q.strip() for q in open(os.path.join(toplvl, "csr", "search.order")) ]
     numgenomes = len(genomes)
     genomes_sorted = [ (i, len(SeqIO.parse(os.path.join(toplvl, i, "%s_pseudo_ref.fasta"%(i)), "fasta").next()) , ) for i in sorted(genomes)]
     # we have finished everythign.. we need to collect some data to display out to the user...
-    return render_to_response(template, dict(jobj = jobj, numgenomes = numgenomes, genomelens = genomes_sorted, ordering = genomes, data = tally, tally= json.dumps(tally, separators=(',',':') ) ), context_instance = RequestContext(request) )
+    return render_to_response(template, dict(jobj = jobj, numgenomes = numgenomes, genomelens = genomes_sorted, ordering = genomes, data = graphdata, tally= json.dumps(graphdata, separators=(',',':') ) ), context_instance = RequestContext(request) )
 
 
 def ajaxGetSNPs(request, jid, ident):
@@ -238,26 +251,18 @@ def ajaxGetSNPs(request, jid, ident):
 
     
 def ajaxGetMSA(request, jid, ident, clean):
-    QUERY_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM csr GROUP BY fileID"""
-    QUERY_TRIMMED_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM trimmed_csr GROUP BY fileID"""
     #if not request.is_ajax():
     #    return
     toplvl = os.path.join(settings.JOBDIR, jid)
     con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)     
-    if clean == '1':
-        data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN consensus AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = QUERY_TRIMMED_CSR_AS_SEQS), (ident,) )
-    elif clean == '0':
-        data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN consensus AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = QUERY_CSR_AS_SEQS), (ident,) )
-
+    qry =  QUERY_TRIMMED_CSR_AS_SEQS
+    if clean == '0':
+        qry = QUERY_CSR_AS_SEQS
+    data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN consensus AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = qry), (ident,) )
     rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), "\n".join([">%s\n%s"%(i,s,)  for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ), ) for r in data ]
-    
     fastadata = "%s%s"%(rows[0][1], rows[0][2])
-    #fdat= StringIO.StringIO(fastadata)
-    #alignment = AlignIO.read(fdat, "fasta")
     
     return HttpResponse(fastadata, content_type = "application/fasta")    
-
-
 
 
 def viewAlignments(request, jid, count, template):
@@ -267,14 +272,9 @@ def viewAlignments(request, jid, count, template):
 
     count = int(count)
     toplvl = os.path.join(settings.JOBDIR, jid)
-    #infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
     con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)    
-    tally = [ (row[0], row[1],) for row in con.execute("""SELECT B.name, B.id FROM files as B  JOIN ( SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID ) AS A ON (A.fileID = B.id) WHERE size = ? ;""", (count,) ) ]
-
-    #tally = [ l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count]
-    tally = natsort.natsorted(tally)
-    return render_to_response(template, dict(jobj = jobj, count = count, showoptions = True,
-                                             tally = tally), context_instance = RequestContext(request) )
+    tally = natsort.natsorted( getSpecificFilesByMemberCount(con, count).fetchall() )
+    return render_to_response(template, dict(jobj = jobj, count = count, showoptions = True, tally = tally), context_instance = RequestContext(request) )
 
 
 def resultFilter(request, jid, count, template):
@@ -286,28 +286,24 @@ def resultFilter(request, jid, count, template):
     toplvl = os.path.join(settings.JOBDIR, jid)
     # get the file names of the csrs that have this particular
     con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)    
-    prebucket = defaultdict(int)
-    postbucket = defaultdict(int)
-    for row in con.execute("""SELECT D.name, C.sam, E.sam FROM  (SELECT B.id, B.name FROM files as B  JOIN ( SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID ) AS A ON (A.fileID = B.id) WHERE size = ?) AS D JOIN  inferSAM AS C ON (C.fileID = D.id) JOIN trimmed_inferSAM as E ON (E.fileID = D.id);""", (count,) ) :
-        # TODO: need to added coverage values to tables
-        precount = len([1 for r in row[1].splitlines() if not r.startswith("@") ])       
-        postcount = len([1 for r in row[2].splitlines() if not r.startswith("@") ])
-        prebucket[precount] += 1
-        postbucket[postcount] += 1
+
+    results = con.execute("""SELECT coverage, count(coverage) FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY coverage;""", (count,) )
+    prebucket = dict(results.fetchall())
+
+    results = con.execute("""SELECT trimmed_coverage, count(trimmed_coverage) FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY trimmed_coverage;""", (count,) )
+    postbucket = dict(results.fetchall())
+
     total = 0
     prebrkcm = {}
     for k in sorted(prebucket.keys(), reverse = True):
         total += prebucket[k]
         prebrkcm[k] = total
 
-    total =0 
+    total = 0 
     postbrkcm = {}
     for k in sorted(postbucket.keys(), reverse = True):
         total += postbucket[k]
         postbrkcm[k] = total
-        #o = open("/tmp/data", "w")
-    #o.write(str(postbrkcm))
-    #o.close()
 
     precovall = sorted(prebrkcm.iteritems(), key = lambda x: x[0])
     postcovall = sorted(postbrkcm.iteritems(), key = lambda x: x[0])
@@ -360,101 +356,108 @@ def downloadvcf(request, jid, count):
     jobj = job.objects.get(pk = jid)  
     count = int(count)
     toplvl = os.path.join(settings.JOBDIR, jid)
-    infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
+    con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)
+
     zstream = ZipFile(fileobj = None, compression = ZIP_DEFLATED)
-    tally = [ l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count]
-    parentsnp = os.path.join(toplvl, "15_SNP_calling")
-    parentaln = os.path.join(toplvl,  settings.MSA_DIR,  "03_trimAL")
-    for f in tally:
-        zstream.write(os.path.join(parentsnp,"%s.vcf"%(f)),os.path.join("SNPs", "%s.vcf"%(f)) )
-        zstream.write(os.path.join(parentaln,"%s.fasta"%(f)),os.path.join("post_trim_alignment", "%s.fasta"%(f)) )
-        #zstream.write(os.path.join(parentaln,"%s.msa"%(f)),os.path.join("aln_msa", "%s.msa"%(f)) )
+    fids = tuple([str(f[1]) for f in getSpecificFilesByMemberCount(con, count)]) # fname and fid
+    
+    data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS, D.vcf  
+                          FROM trimmed_csr as A JOIN files as B ON (B.id = A.fileID) JOIN trimmed_consensus as C ON (C.fileID = A.fileID) JOIN trimmed_vcf AS D ON (D.fileID = A.fileID)
+                          GROUP BY A.fileID HAVING A.fileID IN (""" + ",".join("?"*len(fids)) + """);""", fids )
+    for f in data:
+        fdat = "".join([ 
+                ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
+                "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
+                ])
+        zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
+        zstream.write(iterable = [f[-1]], arcname = os.path.join("SNPs", "%s.vcf"%(f[0])) )
     return streamArchive(zstream, "Job_%s_filter_%s_SNPs.zip"%(jid,count) )    
     
 
-DOWNLOAD_TYPE=dict(post_trim_cat=0, post_trim_aln=1, post_trim_sam=2, pre_trim_aln=3, pre_trim_sam=4, all=5)
+DOWNLOAD_TYPE=dict(post_trim_cat=0, post_trim_aln=1, post_trim_sam=4, pre_trim_aln=2, pre_trim_sam=3, all=5)
 def MSADownload(request, jid, count, tid): #msa_download
     jobj = job.objects.get(pk = jid)  
     tid = int(tid)
     count = int(count)
 
     toplvl = os.path.join(settings.JOBDIR, jid)
-    infodir = os.path.join(toplvl, settings.MSA_DIR, "information")
     zstream = ZipFile(fileobj = None, compression = ZIP_DEFLATED)
     if tid == DOWNLOAD_TYPE['post_trim_cat']: # the concat alns
-        parentdir = os.path.join(toplvl, settings.MSA_DIR, "06_concat_trimeAL_msa")
-        zstream.write(os.path.join(parentdir,"trimmed_cat_aln_%s.msa"%(count) ),os.path.join("post_trim_concat", "trimmed_cat_aln_%s.msa"%(count)) )
-        zstream.write(os.path.join(parentdir,"trimmed_cat_aln_%s.fasta"%(count)),os.path.join("post_trim_concat", "trimmed_cat_aln_%s.fasta"%(count)) )
+        parentdir = os.path.join(toplvl, "concat_trimmed")
+        zstream.write(os.path.join(parentdir,"%s_concat.msa"%(count) ),os.path.join("concat_aln", "%s_concat.msa"%(count)) )
+        zstream.write(os.path.join(parentdir,"%s_concat.fasta"%(count)),os.path.join("concat_aln", "%s_concat.fasta"%(count)) )
         return streamArchive(zstream, "Job_%s_filter_%s_post-trim_concat.zip"%(jid,count) )
-    elif tid == DOWNLOAD_TYPE['all']:
-        parentdir = os.path.join(toplvl, settings.MSA_DIR, "06_concat_trimeAL_msa")
-        zstream.write(os.path.join(parentdir,"trimmed_cat_aln_%s.msa"%(count) ),os.path.join("post_trim_concat", "trimmed_cat_aln_%s.msa"%(count)) )
-        zstream.write(os.path.join(parentdir,"trimmed_cat_aln_%s.fasta"%(count)),os.path.join("post_trim_concat", "trimmed_cat_aln_%s.fasta"%(count)) )
-        parentaln = os.path.join(toplvl, settings.MSA_DIR, "03_trimAL")
-        keep = [l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count]
-        if os.path.exists(os.path.join(parentaln,"%s.msa.fasta"%(keep[0]))):
-            for f in keep:
-                zstream.write(os.path.join(parentaln,"%s.msa.fasta"%(f)),os.path.join("post_trim_alignment", "%s.fasta"%(f)) )
-        else:
-            for f in keep:
-                zstream.write(os.path.join(parentaln,"%s.fasta"%(f)),os.path.join("post_trim_alignment", "%s.fasta"%(f)) )
-        data = json.loads(jobj.data)
-        parentaln = data['aln']
-        for f in keep:
-            zstream.write(os.path.join(parentaln,f),os.path.join("pre_trim_alignment", "%s.fasta"%(f)) )
-        parentaln = os.path.join(toplvl, settings.MSA_DIR, "04_infersam")
-        for f in keep:
-            zstream.write(os.path.join(parentaln,"%s.sam"%(f)),os.path.join("pre_trim_alignment_sam", "%s.sam"%(f)) )
-        parentaln = os.path.join(toplvl, settings.MSA_DIR, "05_infersam_trimmed")
-        for f in keep:
-            zstream.write(os.path.join(parentaln,"%s.sam"%(f)),os.path.join("post_trim_alignment_sam", "%s.sam"%(f)) )
-        parentsnp = os.path.join(toplvl, "15_SNP_calling")
-        for f in keep:
-            zstream.write(os.path.join(parentsnp,"%s.vcf"%(f)),os.path.join("post_trim_SNPs", "%s.vcf"%(f)) )
-        return streamArchive(zstream, "Job_%s_filter_%s_all.zip"%(jid,count) )
+    # elif tid == DOWNLOAD_TYPE['all']:
+    #     parentdir = os.path.join(toplvl, settings.MSA_DIR, "06_concat_trimeAL_msa")
+    #     zstream.write(os.path.join(parentdir,"trimmed_cat_aln_%s.msa"%(count) ),os.path.join("post_trim_concat", "trimmed_cat_aln_%s.msa"%(count)) )
+    #     zstream.write(os.path.join(parentdir,"trimmed_cat_aln_%s.fasta"%(count)),os.path.join("post_trim_concat", "trimmed_cat_aln_%s.fasta"%(count)) )
+    #     parentaln = os.path.join(toplvl, settings.MSA_DIR, "03_trimAL")
+    #     keep = [l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count]
+    #     if os.path.exists(os.path.join(parentaln,"%s.msa.fasta"%(keep[0]))):
+    #         for f in keep:
+    #             zstream.write(os.path.join(parentaln,"%s.msa.fasta"%(f)),os.path.join("post_trim_alignment", "%s.fasta"%(f)) )
+    #     else:
+    #         for f in keep:
+    #             zstream.write(os.path.join(parentaln,"%s.fasta"%(f)),os.path.join("post_trim_alignment", "%s.fasta"%(f)) )
+    #     data = json.loads(jobj.data)
+    #     parentaln = data['aln']
+    #     for f in keep:
+    #         zstream.write(os.path.join(parentaln,f),os.path.join("pre_trim_alignment", "%s.fasta"%(f)) )
+    #     parentaln = os.path.join(toplvl, settings.MSA_DIR, "04_infersam")
+    #     for f in keep:
+    #         zstream.write(os.path.join(parentaln,"%s.sam"%(f)),os.path.join("pre_trim_alignment_sam", "%s.sam"%(f)) )
+    #     parentaln = os.path.join(toplvl, settings.MSA_DIR, "05_infersam_trimmed")
+    #     for f in keep:
+    #         zstream.write(os.path.join(parentaln,"%s.sam"%(f)),os.path.join("post_trim_alignment_sam", "%s.sam"%(f)) )
+    #     parentsnp = os.path.join(toplvl, "15_SNP_calling")
+    #     for f in keep:
+    #         zstream.write(os.path.join(parentsnp,"%s.vcf"%(f)),os.path.join("post_trim_SNPs", "%s.vcf"%(f)) )
+    #     return streamArchive(zstream, "Job_%s_filter_%s_all.zip"%(jid,count) )
 
-
-    
+   
     mincov = -1
     if request.method == 'GET':
         mincov = int(request.GET.get('cutoff', -1))
+    con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)
 
-    tally = set( ( l.split()[0] for l in open(os.path.join(infodir, "find_csr.count")) if int(l.strip().split()[1]) == count) )
-    flist = []
-    fcov = "post_trim.cov"
-    if tid == DOWNLOAD_TYPE['pre_trim_sam'] or tid == DOWNLOAD_TYPE['pre_trim_aln']:
-        fcov = "pre_trim.cov"
-   
-    for l in open(os.path.join(infodir, fcov)):
-        f, info = l.split("\t")
-        if f not in tally:
-            continue
-        cov = int(json.loads(info)[0][1])
-        if cov >= mincov:
-            flist.append(f)
 
+    results_pretrim = tuple([str(r[0]) for r in con.execute("""SELECT A.fileID, sum(coverage) as tcov FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY coverage HAVING tcov >= ?;""", (count, mincov,) )] )
+    pretrimINstr =  ",".join( "?"*len(results_pretrim) )
+    results_posttrim = tuple([str(r[0]) for r in con.execute("""SELECT A.fileID, sum(trimmed_coverage) as tcov FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY trimmed_coverage HAVING tcov >= ?;""", (count, mincov,) ) ])
+    posttrimINstr = ",".join( "?"*len(results_posttrim) )
+    
     if tid == DOWNLOAD_TYPE['post_trim_aln']: # non cat alns in zip, post-trim
-        parentaln = os.path.join(toplvl, settings.MSA_DIR, "03_trimAL")
-        if os.path.exists(os.path.join(parentaln,"%s.msa.fasta"%(flist[0]))):
-            for f in flist:
-                zstream.write(os.path.join(parentaln,"%s.msa.fasta"%(f)),os.path.join("post_trim_alignment", "%s.fasta"%(f)) )
-        else:
-            for f in flist:
-                zstream.write(os.path.join(parentaln,"%s.fasta"%(f)),os.path.join("post_trim_alignment", "%s.fasta"%(f)) )
+        data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS 
+                              FROM trimmed_csr as A JOIN files as B ON (B.id = A.fileID) JOIN trimmed_consensus as C ON (C.fileID = A.fileID) 
+                              GROUP BY A.fileID HAVING A.fileID IN (""" + posttrimINstr + """);""", results_posttrim )
+        for f in data:
+            fdat = "".join([ 
+                        ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
+                        "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
+                        ])
+            zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
         return streamArchive(zstream, "Job_%s_filter_%s_post-trim_aln_mincov_%s.zip"%(jid,count, mincov) )
-    elif tid == DOWNLOAD_TYPE['post_trim_sam']: # non cat alns in zip. pre-trim
-        data = json.loads(jobj.data)
-        parentaln = data['aln']
-        for f in flist:
-            zstream.write(os.path.join(parentaln,f),os.path.join("pre_trim_alignment", "%s.fasta"%(f)) )
+
+    elif tid == DOWNLOAD_TYPE['post_trim_sam']: # non cat alns in zip. pre-trim        
+        data = con.execute("""SELECT A.name, B.sam FROM files as A JOIN trimmed_inferSAM as B ON (A.id = B.fileID) WHERE A.id IN (""" + posttrimINstr + """);""", results_posttrim)
+        for f in data:
+            zstream.write(iterable = [f[1]] ,arcname = os.path.join("post_trim_alignment_sam", "%s.sam"%(f[0]) ) )
         return streamArchive(zstream, "Job_%s_filter_%s_pre-trim_aln_mincov_%s.zip"%(jid,count,mincov) )
+
     elif tid == DOWNLOAD_TYPE['pre_trim_aln']: #pre-trim sam
-        parentaln = os.path.join(toplvl, settings.MSA_DIR, "04_infersam")
-        for f in flist:
-            zstream.write(os.path.join(parentaln,"%s.sam"%(f)),os.path.join("pre_trim_alignment_sam", "%s.sam"%(f)) )
+        data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS 
+                              FROM csr as A JOIN files as B ON (B.id = A.fileID) JOIN consensus as C ON (C.fileID = A.fileID) 
+                              GROUP BY A.fileID HAVING A.fileID IN (""" + pretrimINstr + """);""",  results_pretrim )
+        for f in data:
+            fdat = "".join([ 
+                        ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
+                        "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
+                        ])
+            zstream.write(iterable = [fdat], arcname = os.path.join("pre_trim_alignment", "%s.fasta"%(f[0]) ) )
         return streamArchive(zstream, "Job_%s_filter_%s_pre-trim_sam_mincov_%s.zip"%(jid,count,mincov) )
+
     elif tid == DOWNLOAD_TYPE['pre_trim_sam']: #post-trim sam
-        parentaln = os.path.join(toplvl, settings.MSA_DIR, "05_infersam_trimmed")
-        for f in flist:
-            zstream.write(os.path.join(parentaln,"%s.sam"%(f)),os.path.join("post_trim_alignment_sam", "%s.sam"%(f)) )
+        data = con.execute("""SELECT A.name, B.sam FROM files as A JOIN inferSAM as B ON (A.id = B.fileID) WHERE A.id IN (""" + pretrimINstr + """);""", results_pretrim)
+        for f in data:
+            zstream.write(iterable = [f[1]] ,arcname = os.path.join("pre_trim_alignment_sam", "%s.sam"%(f[0]) ) )        
         return streamArchive(zstream, "Job_%s_filter_%s_post-trim_sam_mincov_%s.zip"%(jid,count,mincov) )

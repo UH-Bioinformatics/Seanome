@@ -3,6 +3,7 @@ import pysam
 import sqlite3
 import cStringIO as StringIO
 import os
+from collections import defaultdict
 
 from sqlitedb import QUERY_TRIMMED_CSR_AS_SEQS
 from utils import removeFiles, CONSENSUS_NAME
@@ -41,6 +42,7 @@ def producer(info):
         if i not in indices:
             total += 1
     outfile = pysam.Samfile("%s.trim.sam"%(fileidx), "wh", header = hdr)
+    newcoverage = defaultdict(int)
     for read in sfile.fetch():
         newseq = ""
         newcig = ""
@@ -80,6 +82,7 @@ def producer(info):
                 read.qual = "I"* len(newseq)
             else:
                 read.qual = newqual
+            newcoverage[read.qname.split("_")[-1]] += 1
             outfile.write(read)
     outfile.close()
     
@@ -89,7 +92,7 @@ def producer(info):
     removeFiles([bamfile, bamidxfile, samout])
 
     bamdat, bamidxdat = samToBam(samdat, "%s.trim"%(fileidx), buffers = True)
-    return fileidx, samdat, bamdat, bamidxdat
+    return fileidx, samdat, bamdat, bamidxdat, newcoverage
 
 
 def consumer(con, returndata):
@@ -101,7 +104,10 @@ def consumer(con, returndata):
         bam = dat[2]
         bamidx = dat[3]
         ident = dat[0]
+        coverage = dat[4]
         curs.execute("""INSERT INTO trimmed_inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (ident, sam, sqlite3.Binary(bam), sqlite3.Binary(bamidx),))
+        for k, v in coverage.iteritems():
+            curs.execute("""UPDATE groups set trimmed_coverage = ? WHERE fileID = ? AND species = ?;""", (v, ident, k,) )
     con.commit()
 
 

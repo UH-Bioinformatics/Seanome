@@ -21,6 +21,11 @@ def buildSingleDB(dbname):
     con.execute("""CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, name TEXT);""")
     con.execute("""CREATE INDEX IF NOT EXISTS file_name_idx ON files(name ASC);""")
 
+    con.execute("""CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY, fileID INTEGER, groupid TEXT, 
+                   species TEXT, coverage INTEGER, trimmed_coverage INTEGER DEFAULT 0, FOREIGN KEY(fileID) REFERENCES files(id) );""")
+    con.execute("""CREATE INDEX IF NOT EXISTS groups_fileid_idx ON groups(fileID ASC);""")
+    con.execute("""CREATE INDEX IF NOT EXISTS groups_species_idx ON groups(species ASC);""")
+
     con.execute("""CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY, fileID INTEGER, groupid TEXT, FOREIGN KEY(fileID) REFERENCES files(id) );""")
     con.execute("""CREATE INDEX IF NOT EXISTS groups_fileid_idx ON groups(fileID ASC);""")
 
@@ -47,11 +52,13 @@ def buildMultieDb(dbname):
     con.execute("""CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, name TEXT);""")
     con.execute("""CREATE INDEX IF NOT EXISTS file_name_idx ON files(name ASC);""")
 
+    con.execute("""CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY, fileID INTEGER, groupid TEXT, 
+                   species TEXT, coverage INTEGER,  trimmed_coverage INTEGER DEFAULT 0, FOREIGN KEY(fileID) REFERENCES files(id) );""")
+    con.execute("""CREATE INDEX IF NOT EXISTS groups_fileid_idx ON groups(fileID ASC);""")
+    con.execute("""CREATE INDEX IF NOT EXISTS groups_species_idx ON groups(species ASC);""")
+
     con.execute("""CREATE TABLE IF NOT EXISTS csr(id INTEGER PRIMARY KEY, fileID INTEGER, seqID TEXT, 
                    sequence TEXT, seed BOOLEAN DEFAULT 0, FOREIGN KEY(fileID) REFERENCES files(id));""")
-
-    con.execute("""CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY, fileID INTEGER, groupid TEXT, FOREIGN KEY(fileID) REFERENCES files(id) );""")
-    con.execute("""CREATE INDEX IF NOT EXISTS groups_fileid_idx ON groups(fileID ASC);""")
 
     con.execute("""CREATE TABLE IF NOT EXISTS consensus(id INTEGER PRIMARY KEY, fileID INTEGER, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
     con.execute("""CREATE INDEX IF NOT EXISTS con_fileid_idx ON consensus(fileID ASC);""")
