@@ -13,12 +13,12 @@
     <div class="col-md-6">
       <select id = "id_snper" name = "id_snper" class = "form-control">
 	<option value = "1" selected = "selected" >Varscan</option>
-	<option value = "2" disabled = "disabled" >Free bayes</option>
-	<option value = "3" disabled = "disabled">GATK</option>
+{#	<option value = "2" disabled = "disabled" >Free bayes</option>#}
+{#	<option value = "3" disabled = "disabled">GATK</option>#}
       </select>
     </div>
   </div>
-
+{% comment %}
  <div class="form-group form-group-sm">
     <label for="id_ordering" class="control-label col-md-4">Ordering method:</label>
     <div class="col-md-6">
@@ -40,6 +40,7 @@
   </div>
 </div>
 
+{% endcomment %}
 
 <button type="submit" class="btn btn-default" id = "submitter" >submit</button>
 </form>

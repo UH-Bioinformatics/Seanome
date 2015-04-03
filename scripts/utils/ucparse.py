@@ -40,7 +40,10 @@ class uclustUserParser(parser):
                 if l[5] == '*':
                     self.clusters[l[1]].append( (l[0], l[2], l[3], index[l[0]], False,) )
                 else:
-                    self.clusters[l[1]].append( (l[0], l[2], l[3], index[l[5]], False,) )
+                    tmp = list(index[l[5]])
+                    tmp[0] = l[0]
+                    tmp = tuple(tmp)
+                    self.clusters[l[1]].append( (l[0], l[2], l[3], tmp, False,) )
         for k in self.clusters.keys():
             if cutoff >= 0 and len(self.clusters[k]) < cutoff:
                 self.clusters.pop(k, None)

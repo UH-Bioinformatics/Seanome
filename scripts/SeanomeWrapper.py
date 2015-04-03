@@ -291,11 +291,11 @@ def maskingSection(oscript, skipmasking = False):
 
 
 def singleMergedInput(args, threads, passalongs):
-   comboname = "_".join(passalongs)
+   #comboname = "_".join(passalongs)
    with open(SAMPLE_RUNNER%(2), "w") as o:
       commonMainScript(o, args, threads, False)
       print >> o, "cd csr"
-      print >> o, """NAME="%s" """%(comboname)
+      print >> o, """NAME="combined" """
       genericBlock(o, """cat %s > ${NAME}.fastq """%( " " .join( [ """ "../%(ident)s/%(ident)s.fastq" """%dict(ident=d) for d in passalongs] ) ) )
       genericBlock(o, """seqtk seq -A ${NAME}.fastq > ${NAME}.fasta""")
       genericBlock(o, """vsearch --derep_fulllength  ${NAME}.fasta -minseqlength 1 -output ${NAME}.dedup.fasta -uc ${NAME}.uc --threads ${THREADS}""")
@@ -304,7 +304,7 @@ def singleMergedInput(args, threads, passalongs):
       genericBlock(o, """update_mapping.py -i ${NAME}.uc -m ${NAME}.mapping_to_cons""")
       maskingSection(o, args.skipmasking)
       genericBlock(o, """coverageInformation.py -s "${NAME}"  -c ${NAME}_clean.ids -m ${NAME}.mapping_to_cons""")
-   return comboname
+   return "combined"
 
 
 def generateMulti(args):
@@ -431,6 +431,7 @@ if __name__ == "__main__":
         #parser.add_argument("-a", "--advance", action = "store_true", required = False, help = "generates coverage information and requires the use to provide input")
         parser.add_argument("-s", "--skipmasking", action = "store_true", required = False, help = "Disable repeat masking")
         parser.set_defaults(workdir=".")
+        parser.set_defaults(advance=False)
 
 	subparsers = parser.add_subparsers(dest='action', help='Available commands')
 	parser_sub = subparsers.add_parser('multiple')

@@ -90,11 +90,16 @@ def seanomeGO(workdir, jid, idmap):
         yaml.dump(dict(libraries=libs, coverage=coverageFiles), ymout)
     # This will generate --ALL-- scripts that are requied to run the seanome pipeline.  instead of using the primary script, we will utilize the intermediate scripts
        
-
-    if(sparams.get('repeatmask', 0) == 1):
-        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 multiple"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
+    if sparams.get("samples", "multi") == "multi":
+        if(sparams.get('repeatmask', 0) == 1):
+            os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 multiple"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
+        else:
+            os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 -s multiple"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
     else:
-        os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 -s multiple"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
+        if(sparams.get('repeatmask', 0) == 1):
+            os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 single"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
+        else:
+            os.system("SeanomeWrapper.py -c %s -d %s -t %s -j 1 -s single"%( os.path.join(workdir, "config.yaml") , "seanome.db3" , settings.WORK_THREADS))
 
     # used in an attempt to limit how many threads of processing a task spins up at any given time.
     rdis_semaphore = Semaphore(Redis(), count = settings.REDIS_THREADS, namespace = 'SeanomeWorkers')
@@ -110,6 +115,8 @@ def seanomeGO(workdir, jid, idmap):
         jobj.save()       
     else:
         os.system("""bash sample_runner_script_1.sh  >> log.out 2>> log.err """)
+        if sparams.get("samples", "multi") != "multi":
+            os.system("""bash sample_runner_script_2.sh  >> log.out 2>> log.err """)
         jobj = job.objects.get(pk = jid)
         jobj.stage = STAGES_REVERSE['done-s1']
         jobj.save()
@@ -129,26 +136,28 @@ def seanomeGOstage2(workdir, jid, cutoffs):
 
     # used in an attempt to limit how many threads of processing a task spins up at any given time.
     rdis_semaphore = Semaphore(Redis(), count = settings.REDIS_THREADS, namespace = 'SeanomeWorkers')
-
-    for l in open("sample_runner_script_2.sh"):
-        if l.startswith("bash "):
-            rdis_semaphore.acquire()
-            l = l.strip().split()
-            key = l[1].split("_")[0]
-            v = cutoffs[key]
-            v.sort()                     
-            l = " ".join(l[:2])
-            if len(v) == 2:
-                os.system("""%s -c %s -z %s  >> log.out 2>> log.err """%(l, v[0], v[1]))
-            else:
-                os.system("""%s %s %s  >> log.out 2>> log.err """%(l, 3, 200))
-        rdis_semaphore.release()
+    if sparams.get("samples", "multi") == "multi":
+        for l in open("sample_runner_script_2.sh"):
+            if l.startswith("bash "):
+                rdis_semaphore.acquire()
+                l = l.strip().split()
+                key = l[1].split("_")[0]
+                v = cutoffs[key]
+                v.sort()                     
+                l = " ".join(l[:2])
+                if len(v) == 2:
+                    os.system("""%s -c %s -z %s  >> log.out 2>> log.err """%(l, v[0], v[1]))
+                else:
+                    os.system("""%s %s %s  >> log.out 2>> log.err """%(l, 3, 200))
+                rdis_semaphore.release()
 
     rdis_semaphore.acquire()
     os.system("""bash sample_runner_script_3.sh -l %s -s %s >> log.out 2>> log.err """%( str(sparams.get('minlen',settings.MIN_SEQ_LEN)) , str(sparams.get('sim', settings.MIN_SEQ_SIM) ) ) )
-    catdir = os.path.join(workdir, "concat_trimmed")
-    for c in getSizes(workdir):
-        os.system("""combineAlignment.py -d %(dbase)s -c %(cnt)s -o %(outprefix)s """%dict(dbase =  os.path.join(workdir, "csr", "seanome.db3"), cnt = c, outprefix = os.path.join(catdir, "%s_concat"%(c)) ) )
+    if sparams.get("samples", "multi") == "multi":
+        # TODO: will need to modify combineAln to deal with single case..
+        catdir = os.path.join(workdir, "concat_trimmed")
+        for c in getSizes(workdir):
+            os.system("""combineAlignment.py -d %(dbase)s -c %(cnt)s -o %(outprefix)s """%dict(dbase =  os.path.join(workdir, "csr", "seanome.db3"), cnt = c, outprefix = os.path.join(catdir, "%s_concat"%(c)) ) )
     rdis_semaphore.release()
     jobj = job.objects.get(pk = jid)
     jobj.stage = STAGES_REVERSE['done-s2']

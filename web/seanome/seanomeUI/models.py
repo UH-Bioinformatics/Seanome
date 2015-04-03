@@ -30,3 +30,4 @@ class job(models.Model):
     conMode = models.IntegerField(default = 1, choices = CON_MODE)
     scriptparams = models.TextField(blank = True, null = True)
     modifydate = models.DateTimeField(auto_now = True)
+    single = models.BooleanField()

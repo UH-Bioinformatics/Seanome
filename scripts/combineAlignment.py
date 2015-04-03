@@ -12,7 +12,7 @@ from collections import defaultdict
 import itertools 
 
 def concatAlignment(con, specnumber, outfile):
-    tally = [ row[0] for row in con.execute("""SELECT A.fileID FROM (SELECT fileID, count(*) as 'size' FROM trimmed_csr GROUP BY fileID ) AS A WHERE size = ? ;""", (specnumber,) ) ]
+    tally = [ row[0] for row in con.execute("""SELECT A.fileID FROM (SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID ) AS A WHERE size = ? ;""", (specnumber,) ) ]
     
     #TODO: Need a clean way to gather what species identifiers exist.
 

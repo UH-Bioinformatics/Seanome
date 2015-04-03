@@ -8,7 +8,7 @@ import sqlite3
 from Bio import SeqIO
 from Bio.Seq import Seq
 import pysam 
-from collections import Counter, OrderedDict
+from collections import Counter, OrderedDict, defaultdict
 
 from utils.ucparse import uclustUserParser
 from utils.cigar import cleanupCigar
@@ -44,7 +44,7 @@ def makeSAMrecSingle(pos, seqinfo, cig, orient, refname, single = False, grpiden
         qual = qual[rmfront:]
     pos =  pos + 1 # need to shift from 0 base to 1 base number system
     if single:
-        return SAMLINE_S%dict(qname = seqinfo[0], rname = CONSENSUS_NAME, pos = pos, cigar = newcig, seq = seq, qual = qual, rgroup = "GROUP-%s"%(grpident))
+        return SAMLINE_S%dict(qname = seqinfo[0], rname = CONSENSUS_NAME, pos = pos, cigar = newcig, seq = seq, qual = qual, rgroup =grpident)
     else:
         return SAMLINE_M%dict(qname = seqinfo[0], rname = CONSENSUS_NAME, pos = pos, cigar = newcig, seq = seq, qual = qual)
 
@@ -98,17 +98,21 @@ def singleProducer(args):
     srec = []
     grps = dict()
     grpHdrs = dict()
-    readgroups = []
+    readgroups = defaultdict(list)
     gidx = 0
+    coverage = defaultdict(int)
+    fname = "outFile_%s_%s"%(idx, len(conseq[1]) )
+    
     for d in clusterdat:
         grpident = d[0].split("_")[0]
         if grpident not in grps:
             grps[ grpident ] = gidx
             gid = "GROUP-%s"%(gidx)
             grpHdrs[grpident] = READGROUP%dict(groupid = gid, library = grpident )
-            readgroups.append(gid)
+            readgroups[grpident] = [gid, grpident, 0]
             gidx += 1
-        srec.append(makeSAMrecSingle(0, d[3], d[1], d[2], conseq[0], True, grps[ grpident ]))
+        readgroups[grpident][-1] += 1 
+        srec.append(makeSAMrecSingle(0, d[3], d[1], d[2], conseq[0], True,  readgroups[grpident][0] ))
     fname = "outFile_%s_%s"%(idx, len(conseq[1]) )
     tmp = str(conseq[1])   
     #rgrps, idtomap = generateReadGroups(grps.iterkeys())
@@ -118,7 +122,7 @@ def singleProducer(args):
     bamdat = open(bamname).read() 
     bamidx = open(bamidxname).read() 
     removeFiles([bamname, bamidxname])    
-    return (fname, readgroups, samdat, bamdat, bamidx, consensus,)
+    return (fname, readgroups.values(), samdat, bamdat, bamidx, consensus,)
 
     
 def singleConsumer(con, returndata):
@@ -134,7 +138,7 @@ def singleConsumer(con, returndata):
         cur.execute("""SELECT id FROM files WHERE name = ?;""", (fname,))
         row = cur.fetchone()
         fileID = row[0]
-        cur.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (fileID, g,) for g in  rgrps)  )      
+        cur.executemany("""INSERT INTO groups(fileID, groupid, species, coverage, trimmed_coverage) VALUES(?,?,?,?,?);""", ( (fileID, g[0], g[1], g[2], g[2]) for g in  rgrps)  )      
         #cur.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (fileID, g['ID'],) for g in  rgrps)  )      
         cur.execute("""INSERT INTO trimmed_inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (fileID, samdat, sqlite3.Binary(bamdat), sqlite3.Binary(bamidx),) )
         cur.execute("""INSERT INTO trimmed_consensus(fileID, sequence) VALUES(?, ?)""", (fileID, consensus,) )
