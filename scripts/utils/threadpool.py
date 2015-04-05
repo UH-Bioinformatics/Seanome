@@ -2,7 +2,7 @@ from multiprocessing import Pool
 
 
 class ProducerConsumer(object):
-    def __init__(self, args, threads, producerfunc, consumer):
+    def __init__(self, args, threads, producer, consumer):
         if threads > 1:
             self.threads= threads - 1
         else:
