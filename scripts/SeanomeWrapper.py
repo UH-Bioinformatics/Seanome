@@ -415,8 +415,10 @@ def generateSingle(args):
          minclust, maxclust = advanceNotice(oo, args, "${NAME}")   
          #minlenAndminSim(oo, parameters, True)    
          genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME} -t ${THREADS} -s ${minlen} """%(minclust, maxclust))
-         genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
-         genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} generateVCF""")
+         genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} updateVCF""")
+         #genericBlock(oo, """vcf_generator.py -t ${THREADS} -d  ${DB_NAME}""")
+         #genericBlock(oo, """vcfmod.py -t ${THREADS} -d  ${DB_NAME}""")
       print >> o, "cd ${OLDDIR}"
 
 

@@ -228,7 +228,7 @@ if __name__ == "__main__":
 
     parser_sub = subparsers.add_parser('single')
     parser_sub.add_argument('-d', '--database', required = True, help = "Database name")
-    parser_sub.add_argument('-t', '--threads', required = False, default = 1, type = int, help = "Processing threads(default: 1)")
+    parser_sub.add_argument('-t', '--threads', required = False, default = 2, type = int, help = "Processing threads(default: 2)")
     parser_sub.add_argument('-s', '--minlen', required = False, default = 0, type = int, help = "Minimum Sequence length(default: 0)")
     parser_sub.set_defaults(func = processSingle)
     args = parser.parse_args()

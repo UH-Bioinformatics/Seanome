@@ -121,7 +121,7 @@ def modCigars(newcigs, infile, outfile):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--threads', type = int, default = 1, help = "Number of processing threads. (default: 1)" )
+    parser.add_argument('-t', '--threads', type = int, default = 2, help = "Number of processing threads. (default: 2)" )
     parser.add_argument('-i1', '--input1',  required = True, help = "MSA output from vsearch/usearch")
     parser.add_argument('-o1', '--output1', required = True, help = " MSA consensus output")
     parser.add_argument('-i2', '--input2',  required = True, help = "userout from vsearch/usearch")

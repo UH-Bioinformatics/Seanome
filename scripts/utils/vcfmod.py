@@ -24,7 +24,10 @@ def consumer(con, returndata):
 
 def producer(info):
     fileid = str(info[0])
-    vcfInput = vcf.Reader(StringIO.StringIO(info[1]))
+    try:
+        vcfInput = vcf.Reader(StringIO.StringIO(info[1]))
+    except:
+        return None
     line = None
     try:
         line = vcfInput.next()

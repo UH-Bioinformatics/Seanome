@@ -1,7 +1,6 @@
 import os
 import sys
 import subprocess
-from multiprocessing import Pool
 import sqlite3
 import cStringIO as StringIO
 

@@ -49,7 +49,7 @@ def makeDirOrdie(dirPath):
 def main(argv):
     parser = argparse.ArgumentParser(description="Seanome description", epilog="Seanome long text description")
     parser.add_argument('-v', '--version', action='version', version='%(prog)s '+version)
-    parser.add_argument('-t', '--threads', type=int, default = 1)
+    parser.add_argument('-t', '--threads', type=int, default = 2, help = "Number of threads (default: 2)")
     parser.add_argument("-q", "--quiet", action = "store_true", required = False, help = "Silence subprocess output")
     parser.add_argument('-d', '--database', required=True, help="Seanome sqlite database")
     subparsers = parser.add_subparsers(dest='action', help='Available commands')
