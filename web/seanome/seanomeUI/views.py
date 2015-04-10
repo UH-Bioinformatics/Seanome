@@ -40,7 +40,7 @@ QUERY_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_co
 QUERY_TRIMMED_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM trimmed_csr GROUP BY fileID"""
 
 def getSpecificFilesByMemberCount(con, count):
-    return con.execute("""SELECT B.name, B.id FROM files as B  JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID ) AS A ON (A.fileID = B.id) WHERE size = ? ;""", (count,))
+    return con.execute("""SELECT B.name, fileID, count(*) as 'size' FROM groups AS A JOIN files as B ON (A.fileID = B.id) GROUP BY fileID HAVING size = ?;""", (count,))
 
 
 def getMemberCounts(con, sizeonly = False):
@@ -239,7 +239,7 @@ def completedJob(request, jid, template):
         genomes_sorted = [ (i, len(SeqIO.parse(os.path.join(toplvl, i, "%s_pseudo_ref.fasta"%(i)), "fasta").next()) , ) for i in sorted(genomes)]
     else:
         genomes = ["combined"]
-        numgenomes = 1
+        numgenomes =  con.execute("""SELECT count(distinct species) FROM groups;""").fetchone()[0] 
         genomes_sorted = [("combined", sum([len(s[0])for s in con.execute("""SELECT sequence FROM trimmed_consensus;""") ]) )]
     # we have finished everythign.. we need to collect some data to display out to the user...
     return render_to_response(template, dict(jobj = jobj, numgenomes = numgenomes, genomelens = genomes_sorted, ordering = genomes, data = graphdata, tally= json.dumps(graphdata, separators=(',',':') ) ), context_instance = RequestContext(request) )
@@ -296,11 +296,16 @@ def resultFilter(request, jid, count, template):
     # get the file names of the csrs that have this particular
     con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)    
 
-    results = con.execute("""SELECT coverage, count(coverage) FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY coverage;""", (count,) )
-    prebucket = dict(results.fetchall())
+    results = con.execute("""SELECT sum(coverage) as tot_cov,  count(*) as 'size' FROM groups GROUP BY fileID HAVING size = ?;""", (count,) )
+    prebucket = Counter( (r[0] for r in results) )
+    #results = con.execute("""SELECT coverage, count(coverage) FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID HAVING size = ? )  AS B ON (A.fileID = B.fileID) GROUP BY coverage;""", (count,) )
+    #prebucket = dict(results.fetchall())
 
-    results = con.execute("""SELECT trimmed_coverage, count(trimmed_coverage) FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY trimmed_coverage;""", (count,) )
-    postbucket = dict(results.fetchall())
+    #results = con.execute("""SELECT trimmed_coverage, count(trimmed_coverage) FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID HAVIGN size = ? )  AS B ON (A.fileID = B.fileID) GROUP BY trimmed_coverage;""", (count,) )
+    results = con.execute("""SELECT sum(trimmed_coverage) as tcov,  count(*) as 'size' FROM groups GROUP BY fileID HAVING size = ?;""", (count,) )
+    postbucket = Counter( (r[0] for r in results) )
+
+    #postbucket = dict(results.fetchall())
 
     total = 0
     prebrkcm = {}
@@ -317,7 +322,7 @@ def resultFilter(request, jid, count, template):
     precovall = sorted(prebrkcm.iteritems(), key = lambda x: x[0])
     postcovall = sorted(postbrkcm.iteritems(), key = lambda x: x[0])
 
-    return render_to_response(template, dict(jobj = jobj, count = count, showoptions = True,
+    return render_to_response(template, dict(jobj = jobj, count = count, showoptions = True, single = jobj.single,
                                              prebreak = json.dumps( precovall, separators=(',',':') ),
                                              postbreak = json.dumps( postcovall, separators=(',',':') ),
                                              prebrkcm = json.dumps( prebrkcm, separators=(',',':') ),
@@ -371,32 +376,46 @@ def downloadvcf(request, jid, count):
     fids = tuple([str(f[1]) for f in getSpecificFilesByMemberCount(con, count)]) # fname and fid
 
 
-    
-    data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS, D.vcf  
+    if jobj.single == False:
+        data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS, D.vcf  
                           FROM trimmed_csr as A JOIN files as B ON (B.id = A.fileID) JOIN trimmed_consensus as C ON (C.fileID = A.fileID) JOIN trimmed_vcf AS D ON (D.fileID = A.fileID)
                           GROUP BY A.fileID HAVING A.fileID IN (""" + ",".join("?"*len(fids)) + """);""", fids )
-    for f in data:
-        fdat = "".join([ 
-                ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
-                "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
-                ])
-        zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
-        zstream.write(iterable = [f[-1]], arcname = os.path.join("SNPs", "%s.vcf"%(f[0])) )
+        for f in data:
+            fdat = "".join([ 
+                    ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
+                    "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
+                    ])
+            zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
+            zstream.write(iterable = [f[-1]], arcname = os.path.join("SNPs", "%s.vcf"%(f[0])) )
+    else:
+        data = con.execute("""SELECT B.name, C.sequence, D.vcf  
+                          FROM files as B  JOIN trimmed_consensus as C ON (C.fileID = B.id) JOIN trimmed_vcf AS D ON (D.fileID = B.id)
+                          WHERE B.id IN (""" + ",".join("?"*len(fids)) + """);""", fids )
+        for f in data:
+            fdat =  ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1])
+            zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
+            zstream.write(iterable = [f[-1]], arcname = os.path.join("SNPs", "%s.vcf"%(f[0])) )
+
     return streamArchive(zstream, "Job_%s_filter_%s_SNPs.zip"%(jid,count) )    
     
 
 DOWNLOAD_TYPE=dict(post_trim_cat=0, post_trim_aln=1, post_trim_sam=4, pre_trim_aln=2, pre_trim_sam=3, all=5)
 def MSADownload(request, jid, count, tid): #msa_download
+    ### TODO: DLS - figure out a nice way to not iterator the sqlite execute command before dealing with the streaming
+
+
     jobj = job.objects.get(pk = jid)  
     tid = int(tid)
     count = int(count)
 
     toplvl = os.path.join(settings.JOBDIR, jid)
     zstream = ZipFile(fileobj = None, compression = ZIP_DEFLATED)
+
     if tid == DOWNLOAD_TYPE['post_trim_cat']: # the concat alns
         parentdir = os.path.join(toplvl, "concat_trimmed")
-        zstream.write(os.path.join(parentdir,"%s_concat.msa"%(count) ),os.path.join("concat_aln", "%s_concat.msa"%(count)) )
-        zstream.write(os.path.join(parentdir,"%s_concat.fasta"%(count)),os.path.join("concat_aln", "%s_concat.fasta"%(count)) )
+    
+        zstream.write(os.path.join(parentdir,"%s_concat.msa"%(count) ), arcname = os.path.join("concat_aln", "%s_concat.msa"%(count)) )
+        zstream.write(os.path.join(parentdir,"%s_concat.fasta"%(count)), arcname = os.path.join("concat_aln", "%s_concat.fasta"%(count)) )
         return streamArchive(zstream, "Job_%s_filter_%s_post-trim_concat.zip"%(jid,count) )
     # elif tid == DOWNLOAD_TYPE['all']:
     #     parentdir = os.path.join(toplvl, settings.MSA_DIR, "06_concat_trimeAL_msa")
@@ -432,21 +451,32 @@ def MSADownload(request, jid, count, tid): #msa_download
     con = sqlite3.connect(os.path.join(toplvl, "csr", "seanome.db3"), check_same_thread=False)
 
 
-    results_pretrim = tuple([str(r[0]) for r in con.execute("""SELECT A.fileID, sum(coverage) as tcov FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY coverage HAVING tcov >= ?;""", (count, mincov,) )] )
+    #results_pretrim = tuple([str(r[0]) for r in con.execute("""SELECT A.fileID, sum(coverage) as tcov FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY coverage HAVING tcov >= ?;""", (count, mincov,) )] )
+    #results_posttrim = tuple([str(r[0]) for r in con.execute("""SELECT A.fileID, sum(trimmed_coverage) as tcov FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY trimmed_coverage HAVING tcov >= ?;""", (count, mincov,) ) ])
+
+    results_pretrim = tuple([ str(r[0]) for r in con.execute("""SELECT fileID, sum(coverage) as tcov, count(*) as 'size' FROM groups GROUP BY fileID HAVING size = ? AND tcov >= ?;""", (count, mincov,)) ])
     pretrimINstr =  ",".join( "?"*len(results_pretrim) )
-    results_posttrim = tuple([str(r[0]) for r in con.execute("""SELECT A.fileID, sum(trimmed_coverage) as tcov FROM groups AS A JOIN ( SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID )  AS B ON (A.fileID = B.fileID) WHERE size = ? GROUP BY trimmed_coverage HAVING tcov >= ?;""", (count, mincov,) ) ])
+    results_posttrim = tuple([ str(r[0]) for r in con.execute("""SELECT fileID, sum(trimmed_coverage) as tcov, count(*) as 'size' FROM groups GROUP BY fileID HAVING size = ? AND tcov >= ?;""", (count, mincov,)) ])
     posttrimINstr = ",".join( "?"*len(results_posttrim) )
     
     if tid == DOWNLOAD_TYPE['post_trim_aln']: # non cat alns in zip, post-trim
-        data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS 
+        if jobj.single == False:
+            data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS 
                               FROM trimmed_csr as A JOIN files as B ON (B.id = A.fileID) JOIN trimmed_consensus as C ON (C.fileID = A.fileID) 
                               GROUP BY A.fileID HAVING A.fileID IN (""" + posttrimINstr + """);""", results_posttrim )
-        for f in data:
-            fdat = "".join([ 
+            for f in data:
+                fdat = "".join([ 
                         ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
                         "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
                         ])
-            zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
+                zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
+        else:
+            data = con.execute("""SELECT B.name, C.sequence
+                              FROM files as B JOIN trimmed_consensus as C ON (C.fileID = B.id) 
+                              WHERE B.id IN (""" + posttrimINstr + """);""", results_posttrim )
+            for f in data:
+                fdat = ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1])
+                zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
         return streamArchive(zstream, "Job_%s_filter_%s_post-trim_aln_mincov_%s.zip"%(jid,count, mincov) )
 
     elif tid == DOWNLOAD_TYPE['post_trim_sam']: # non cat alns in zip. pre-trim        
@@ -456,15 +486,25 @@ def MSADownload(request, jid, count, tid): #msa_download
         return streamArchive(zstream, "Job_%s_filter_%s_pre-trim_aln_mincov_%s.zip"%(jid,count,mincov) )
 
     elif tid == DOWNLOAD_TYPE['pre_trim_aln']: #pre-trim sam
-        data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS 
-                              FROM csr as A JOIN files as B ON (B.id = A.fileID) JOIN consensus as C ON (C.fileID = A.fileID) 
+
+        if jobj.single == False:
+            data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS 
+                              FROM csr AS A JOIN files AS B ON (B.id = A.fileID) JOIN consensus as C ON (C.fileID = A.fileID) 
                               GROUP BY A.fileID HAVING A.fileID IN (""" + pretrimINstr + """);""",  results_pretrim )
-        for f in data:
-            fdat = "".join([ 
+            for f in data:
+                fdat = "".join([ 
                         ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
                         "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
                         ])
-            zstream.write(iterable = [fdat], arcname = os.path.join("pre_trim_alignment", "%s.fasta"%(f[0]) ) )
+                zstream.write(iterable = [fdat], arcname = os.path.join("pre_trim_alignment", "%s.fasta"%(f[0]) ) )
+        else:
+            data = con.execute("""SELECT B.name, C.sequence
+                              FROM files as B JOIN trimmed_consensus as C ON (C.fileID = B.id) 
+                              WHERE B.id IN (""" + pretrimINstr + """);""",  results_pretrim )
+            for f in data:
+                fdat =  ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1])
+                zstream.write(iterable = [fdat], arcname = os.path.join("pre_trim_alignment", "%s.fasta"%(f[0]) ) )
+
         return streamArchive(zstream, "Job_%s_filter_%s_pre-trim_sam_mincov_%s.zip"%(jid,count,mincov) )
 
     elif tid == DOWNLOAD_TYPE['pre_trim_sam']: #post-trim sam
@@ -472,3 +512,14 @@ def MSADownload(request, jid, count, tid): #msa_download
         for f in data:
             zstream.write(iterable = [f[1]] ,arcname = os.path.join("pre_trim_alignment_sam", "%s.sam"%(f[0]) ) )        
         return streamArchive(zstream, "Job_%s_filter_%s_post-trim_sam_mincov_%s.zip"%(jid,count,mincov) )
+
+
+# def alnIterator():
+#             data = con.execute("""SELECT B.name, C.sequence, group_concat(A.seqID, '\t') AS IDs, group_concat(A.sequence, '\t') AS SEQS 
+#                               FROM csr as A JOIN files as B ON (B.id = A.fileID) JOIN consensus as C ON (C.fileID = A.fileID) 
+#                               GROUP BY A.fileID HAVING A.fileID IN (""" + pretrimINstr + """);""",  results_pretrim )
+#             for f in data:
+#                 fdat = "".join([ 
+#                         ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = f[1]),
+#                         "\n".join([">%s\n%s"%(i, s,)  for i, s in itertools.izip(f[2].split("\t") ,f[3].split("\t") ) ]) 
+#                         ])

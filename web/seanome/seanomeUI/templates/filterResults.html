@@ -16,15 +16,17 @@
 {#  <div class = "col-md-8"><a href = "{% url 'msa_download' jobj.id count 5 %}">Download</a> (zip)</div>#}
 {#</div>#}
 {#<hr />#}
-
+{% if not single %}
 <div class = "row"><div class = "col-md-12"><h2>Concantenated alignments</h2></div></div>
 <div class= "row">
   <div class = "col-md-4">Post trimming</div>
   <div class = "col-md-8"><a href = "{% url 'msa_download' jobj.id count 0 %}">Download</a> (zip/fasta/clustal)</div>
 </div>
 <hr />
+{% endif %}
 
-<div class = "row"><div class = "col-md-12"><h2>Post trimming</h2></div></div>
+
+<div class = "row"><div class = "col-md-12"><h2>{% if not single %}Post trimming{% else %}Results{% endif %}</h2></div></div>
 {% comment %}
 <div class = "row">
   <div class= "col-md-3">Minimum average coverage: </div>
@@ -50,7 +52,7 @@
   <div class = "col-md-4">sam files</div>
   <div class = "col-md-8"><a href = "#" onclick = "ondownload('{% url 'msa_download' jobj.id count 4 %}', '#postcov', '{{postcov.0}}', '{{postcov.1}}'); return false;">Download</a> (zip/sam)</div>
 </div>
-
+{% if not single %}
 <hr />
 <div class = "row"><div class = "col-md-12"><h2>Pre trimming</h2></div></div>
 
@@ -78,6 +80,7 @@
 <div class= "row">
   <div class = "col-md-4">sam files</div>
   <div class = "col-md-8"><a onclick = "ondownload('{% url 'msa_download' jobj.id count 3 %}', '#precov', '{{precov.0}}', '{{precov.1}}');return false;" href = "#">Download</a> (zip/sam)</div>
+{% endif %}
 <br /><br /><br />
 <div class = "graphtip" id = "toolbox" style = "opacity:0;"></div>
 
