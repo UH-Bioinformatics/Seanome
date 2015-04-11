@@ -1,6 +1,6 @@
 Biopython
 pysam
-vcf
+pyvcf
 scipy
 numpy
 redis

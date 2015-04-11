@@ -1,0 +1,55 @@
+redis
+mysql
+memcache?
+jquery
+d3.js
+biojs-vis-msa
+
+
+libnss-mysql
+libpam-mysql
+rssh
+
+###############
+
+
+;;;;;;;;;;;
+common-session #(last line)
+session  required       pam_mkhomedir.so skel=/etc/skel umask=0077
+
+;;;;;;;;;;;
+common-auth # second entry in the auth selection.  The success= refers to how many rules to skip
+#auth    [success=3 default=ignore]      pam_unix.so nullok_secure
+auth    [success=2 default=ignore]      pam_mysql.so   config_file=/etc/pam-mysql.conf
+#auth    [success=1 default=ignore]      pam_winbind.so krb5_auth krb5_ccache_type=FILE cached_login try_first_pass
+
+;;;;;;;;;;;
+common-account # second entry in the auth selection.  The success= refers to how many rules to skip
+#account [success=3 new_authtok_reqd=done default=ignore]        pam_unix.so
+account [success=2 new_authtok_reqd=done default=ignore]        pam_mysql.so config_file=/etc/pam-mysql.conf
+#account [success=1 new_authtok_reqd=done default=ignore]        pam_winbind.so
+
+;;;;;;;;;;
+sshd_config
+
+UsePAM yes
+Match Group sftponly
+      ChrootDirectory /home/scponly/
+      X11Forwarding no
+      AllowTcpForwarding no
+      ForceCommand internal-sftp
+
+;;;;;;;
+
+create database user_db
+CREATE TABLE `user` (
+  `user_id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `login_name` varchar(255) NOT NULL,
+  `password` text NOT NULL,
+  PRIMARY KEY (`user_id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+GRANT USAGE ON *.* TO ''@'localhost' IDENTIFIED BY PASSWORD ''
+GRANT ALL PRIVILEGES ON `user_db`.* TO ''@'localhost'    
+
