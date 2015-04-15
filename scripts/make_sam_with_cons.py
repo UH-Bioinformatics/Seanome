@@ -104,7 +104,7 @@ def singleProducer(args):
     fname = "outFile_%s_%s"%(idx, len(conseq[1]) )
     
     for d in clusterdat:
-        grpident = d[0].split("_")[0]
+        grpident = d[0].split("_")[-1]
         if grpident not in grps:
             grps[ grpident ] = gidx
             gid = "GROUP-%s"%(gidx)

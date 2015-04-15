@@ -19,7 +19,7 @@ int main(int argc, char * argv[]){
   size_t idx = 0;
   if(argc == 3){
     while (kseq_read(seq) >= 0){
-      fprintf(stdout, "@%s_%"PRId64"\n%s\n+%s_%"PRId64"\n%s\n", argv[2], idx, seq->seq.s, argv[2] , idx, seq->qual.s);
+      fprintf(stdout, "@%"PRId64"_%s\n%s\n+%s_%"PRId64"\n%s\n", idx, argv[2], seq->seq.s, argv[2] , idx, seq->qual.s);
       ++ idx;
     }
   } else {
