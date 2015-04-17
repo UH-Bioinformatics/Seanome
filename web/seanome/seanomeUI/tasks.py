@@ -87,8 +87,14 @@ def seanomeGO(workdir, jid, idmap):
             pass
 
     with open(os.path.join(workdir, "config.yaml"), "w") as ymout:
+        yaml.dump(dict(libraries=libs), ymout)
+ 
+    with open(os.path.join(workdir, "coverageLocation.yaml"), "w") as ymout:
+        if sparams.get("samples", "multi") != "multi" and len(lib) <= 2:
+            coverageFiles = [os.path.join(workdir, "csr", "combined.coverage.json") ]
         yaml.dump(dict(libraries=libs, coverage=coverageFiles), ymout)
-    # This will generate --ALL-- scripts that are requied to run the seanome pipeline.  instead of using the primary script, we will utilize the intermediate scripts
+
+   # This will generate --ALL-- scripts that are requied to run the seanome pipeline.  instead of using the primary script, we will utilize the intermediate scripts
        
     if sparams.get("samples", "multi") == "multi":
         if(sparams.get('repeatmask', 0) == 1):

@@ -10,11 +10,12 @@
 <div class= "row">
 <div class = "col-md-12">
 <br />
-<div class = "row"><div class = "col-md-4">Number of Species</div><div class = "col-md-4">{{numgenomes}}</div></div>
+<div class = "row"><div class = "col-md-4">Number of samples</div><div class = "col-md-4">{{numgenomes}}</div></div>
 <h3>Pseudo-genome bp count</h3>
 {% for r in genomelens %}
 <div class = "row"><div class = "col-md-4">{{r.0}}</div><div class = "col-md-4">{{r.1|intcomma}}</div></div>
 {% endfor %}
+{% if not jobj.single %}
 <hr />
 <h3>Processing order</h3>
 <ol>
@@ -23,14 +24,14 @@
 <li>{{r}}</li>
 {% endfor %}
 </ol>
-
+{% endif %}
 <hr />
-<h2>Breakdown of CSRs by number of species</h2>
+<h2>Breakdown of CSRs by number of samples</h2>
 <div class= "row col-md-12"><small>Click on a circle to view breakdown</small></div>
 <div class = "row col-md-12">
 {% for i in data %}
  {% if forloop.first %}
-  <div class = "row"><div class = "col-md-4"><strong>Number of Species</strong></div><div class = "col-md-4"><strong>Number of CSRs</strong></div></div>
+  <div class = "row"><div class = "col-md-4"><strong>Number of samples</strong></div><div class = "col-md-4"><strong>Number of CSRs</strong></div></div>
  {% endif %}
   <div class = "row"><div class = "col-md-4">{{i.label}}</div><div class = "col-md-4">{{i.v}}</div></div>
 {% endfor %}

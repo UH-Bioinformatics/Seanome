@@ -26,15 +26,21 @@ MAIN_SCRIPT="""primary_script.sh"""
 SAMPLE_SCRIPT="""%s_sample_%s_step_%s.sh"""
 SAMPLE_RUNNER="""sample_runner_script_%s.sh"""
 
+
+MINLEN = 150
+MINSIM = 0.94
+MINCLUST = 3
+MAXCLUST = 200
+
 def printBashHeader(o):
    print >> o, "#!/bin/bash"
 
 
-def bashargsparse(o, mlen = 150, msim = 0.94, onlyparams = False):  
+def bashargsparse(o, mlen = MINLEN, msim = MINSIM, onlyparams = False):  
    print >> o, "minlen=%s"%(mlen)
    print >> o, "minsim=%s"%(msim)
-   print >> o, "minClustSize=3"
-   print >> o, "maxClustSize=200"
+   print >> o, "minClustSize=%s"%(MINCLUST)
+   print >> o, "maxClustSize=%s"%(MAXCLUST)
    if onlyparams:
       return
    print >> o, """while getopts ":c:z:l:s:" opt; do"""
@@ -117,7 +123,7 @@ def renameFastq(oscript, addSuffix):
 
 def buildCommonStepOne(args, oscript, pairs, ident, threads, prefix = False):
    printBashHeader(oscript)
-   print >> oscript, "input_forward_path='%s'"%(pairs[0]) 
+   print >> oscript, "input_forward_path='%'"%(pairs[0]) 
    print >> oscript, "input_reverse_path='%s'"%(pairs[1]) 
    print >> oscript, "NAME='%s'"%(ident) 
    print >> oscript, "THREADS=%s\n"%(threads) 
@@ -297,7 +303,7 @@ def orderingFunction(oo, passalongs, dummyorder = False):
 def sampleRunner3_Multi(args, parameters, threads, passalongs, largesingle = False):
    with open(SAMPLE_RUNNER%(3), "w") as oo:
       commonMainScript(oo, args, threads, True)
-      bashargsparse(oo,mlen = parameters.get('findcsr', {}).get('minlen', "150") , msim = parameters.get('findcsr', {}).get('minsim', "0.94"))
+      bashargsparse(oo,mlen = parameters.get('findcsr', {}).get('minlen', MINLEN) , msim = parameters.get('findcsr', {}).get('minsim', MINSIM))
       print >> oo, "cd csr"
       for d in passalongs:
          genericBlock(oo, """mv ../%(parent)s/%(bam)s ../%(parent)s/%(bamidx)s cluster_bams/"""%dict(parent = d[0], bam = d[1], bamidx = d[2]) )
@@ -362,7 +368,7 @@ def sampleRunner3_Single(args, parameters, threads, comboname):
       commonMainScript(oo, args, threads, False)
       print >> oo, "cd csr"
       print >> oo, """NAME="%s" """%(comboname)
-      bashargsparse(oo,mlen = parameters.get('findcsr', {}).get('minlen', "150") , msim = parameters.get('findcsr', {}).get('minsim', "0.94"))
+      bashargsparse(oo,mlen = parameters.get('findcsr', {}).get('minlen', MINLEN) , msim = parameters.get('findcsr', {}).get('minsim', MINSIM))
       minclust, maxclust = advanceNotice(oo, args, "${NAME}")   
       genericBlock(oo, """make_sam_with_cons.py -u  ${NAME}.mapping_to_cons -q ${NAME}.fastq -c ${NAME}_clean.ids -f ${NAME}.final.contigs.masked -l %s -m %s single -d ${DB_NAME} -t ${THREADS} -s ${minlen} """%(minclust, maxclust))
       genericBlock(oo, """Seanome.py -t ${THREADS} -d ${DB_NAME} generateVCF""")
