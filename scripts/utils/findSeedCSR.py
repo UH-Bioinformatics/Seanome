@@ -47,7 +47,7 @@ def find_shared_regions(args):
     if args.quiet:
         qaction = " > /dev/null 2> /dev/null "
     cline = USRCH%dict(input=args.input1, database=args.input2, output= tmpname, threads = args.threads, tail = qaction )
-    print cline
+    #print cline
     child = subprocess.Popen(str(cline), shell=(sys.platform!="win32") )
     child.wait()
     data = [l.strip().split() for l in open(tmpname)]

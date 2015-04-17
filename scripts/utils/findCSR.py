@@ -13,7 +13,8 @@ from threadpool import ProducerConsumer
 from Bio.Align.Applications import MuscleCommandline
 
 
-HMM_CMD = """nhmmer --cpu 1 --qformat fasta - %(genome)s """
+#HMM_CMD = """nhmmer --cpu 1 --qformat fasta - %(genome)s """
+HMM_CMD = """nhmmer --cpu 1 --dna --qformat fasta - %(genome)s """
 hmmer_hit_re = re.compile(r'score\s*bias\s*Evalue\s*hmmfrom\s*hmm\s*to\s*alifrom')
 hmmer_query_length = re.compile("Query:\s*ali\s*\[M=(\d+)")
 def remove_readonly(func, path, excinfo):
@@ -55,7 +56,6 @@ def find_csrProducer(payload):
       if hmmer_query_length.search(line):
          length = hmmer_query_length.search(line).groups()[0]
       elif hmmer_hit_re.search(line):
-         
          line = hitfile.next()
          line = hitfile.next()
          data = line.strip().split()
@@ -76,6 +76,7 @@ def find_csrProducer(payload):
          else:
             print "Parameters not met for alignment %s " % info[0]
             continue 
+         
          # need to run muscle on the seqs + hitseq 
          seqs = "\n".join([">%s\n%s"%(str(i), str(s)) for i, s in zip(info[1].split("\t"), info[2].replace("-","").split("\t"))])
          seqs = ">%s\n%s\n%s"%(hitid, hitseq, seqs)
@@ -102,7 +103,7 @@ def find_csrConsumer(con, returndat):
          if q.id == dat[2]:
             cur2.execute("""INSERT INTO csr(fileID, seqID, sequence) VALUES(?, ?, ?)""", (dat[0], q.id, str(q.seq), ) )
          else:
-            cur2.execute("""UPDATE csr SET sequence = ?  WHERE seqID = ?;""", (str(q.seq), q.id,) )
+            cur2.execute("""UPDATE csr SET sequence = ?  WHERE seqID = ? AND fileID = ?;""", (str(q.seq), q.id, dat[0]) )
    con.commit()
 
 

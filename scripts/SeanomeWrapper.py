@@ -197,14 +197,14 @@ def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1, lar
             d.extend(buildMakeSamScript(childname, d[0], threads, not largesingle))
             if c % args.jobs == 0:
                if c != 0:
-                  print >> o, "wait ${pidArr[@]}"
+                  print >> oo, "wait ${pidArr[@]}"
                   proc = []
-               print >> o, """pidArr=()"""	
+               print >> oo, """pidArr=()"""	
             minclust, maxclust = advanceNotice(oo, args, d[0])
             genericBlock(oo, """bash %s -c %s -z %s &\npidArr+=($!)"""%(childname, minclust, maxclust))
             proc.append(1)
          if proc:
-            print >> o, "wait ${pidArr[@]}"
+            print >> oo, "wait ${pidArr[@]}"
    else:	
       for cname in children_scripts:
          genericBlock(o, """bash %s"""%(cname))
@@ -301,10 +301,11 @@ def sampleRunner3_Multi(args, parameters, threads, passalongs, largesingle = Fal
       print >> oo, "cd csr"
       for d in passalongs:
          genericBlock(oo, """mv ../%(parent)s/%(bam)s ../%(parent)s/%(bamidx)s cluster_bams/"""%dict(parent = d[0], bam = d[1], bamidx = d[2]) )
-            
-      print >> oo, """mkdir kmer_counts"""
-      for d in passalongs:
-         genericBlock(oo, """mv ../%(parent)s/%(cnt)s kmer_counts/"""%dict(parent = d[0], cnt = d[5]) )         
+
+      if not largesingle:
+         print >> oo, """mkdir kmer_counts"""
+         for d in passalongs:
+            genericBlock(oo, """mv ../%(parent)s/%(cnt)s kmer_counts/"""%dict(parent = d[0], cnt = d[5]) )         
       if len(passalongs) >= 2:
          orderingFunction(oo, passalongs, largesingle)
       else:
