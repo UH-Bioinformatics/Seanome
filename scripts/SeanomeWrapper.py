@@ -123,7 +123,7 @@ def renameFastq(oscript, addSuffix):
 
 def buildCommonStepOne(args, oscript, pairs, ident, threads, prefix = False):
    printBashHeader(oscript)
-   print >> oscript, "input_forward_path='%'"%(pairs[0]) 
+   print >> oscript, "input_forward_path='%s'"%(pairs[0]) 
    print >> oscript, "input_reverse_path='%s'"%(pairs[1]) 
    print >> oscript, "NAME='%s'"%(ident) 
    print >> oscript, "THREADS=%s\n"%(threads) 
@@ -263,6 +263,7 @@ def singleMergedInput(args, threads, passalongs):
       genericBlock(o, """update_mapping.py -i ${NAME}.uc -m ${NAME}.mapping_to_cons""")
       maskingSection(o, args.skipmasking)
       genericBlock(o, """coverageInformation.py -s "${NAME}"  -c ${NAME}_clean.ids -m ${NAME}.mapping_to_cons""")
+      genericBlock(o, """echo -e "combined" > search.order """)
    return "combined"
 
 

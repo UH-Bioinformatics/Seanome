@@ -21,7 +21,7 @@ function drawMSA(baseurl){
                    labelWidth: 210,
                    labelIdLength: 0,
                    alignmentWidth: 940,
-                   alignmentHeight: 330,
+                   alignmentHeight: 200,
                    residueFont: "18px mono monospace",
                    labelFontsize: "9px",
                    labelLineHeight: "30px",
@@ -37,6 +37,7 @@ function drawMSA(baseurl){
 	                            else if(seq.name.length > 22)
 					seq.name = seq.name.substring(0,22);
 				  });
+	opts.zoomer['alignmentHeight'] = Math.min(20 * seqs.length, 200);
 	opts.seqs = seqs;
         opts.speed = true;
 	opts.keyevents = true;
@@ -73,7 +74,8 @@ function drawTable(baseurl){
 	html += "<thead>" + hdr + "</thead><tfoot>"+ hdr +"</tfoot><tbody>";
 	data.forEach(function(d){
 	    html += "<tr><td style='cursor:pointer;' onclick='gotopos(" +'"' + (d.pos - 1) + '"' + ");'>" + d.pos + "</td><td>" + d.ref + "</td><td>" + d.alts.join(", ") + "</td>";
-            MSA.g.selcol.add( new  biojs.vis.msa.selection.columnsel({xStart: d.pos - 1, xEnd: d.pos - 1}) );
+	    // DLS: race condition with the MSA creation.  Need to figure out how to create a dependency..
+            //MSA.g.selcol.add( new  biojs.vis.msa.selection.columnsel({xStart: d.pos - 1, xEnd: d.pos - 1}) );
 	    keys.forEach(function(k){
 		var tmpcnt = [];
 		var total = 0

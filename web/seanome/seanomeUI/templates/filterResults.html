@@ -39,8 +39,8 @@
 <div class = "row" id = "postgraph"></div>
 <div class = "row">
   <div class= "col-md-3"><label for = "postcov">Minimum required coverage</label></div>
-  <div class = "col-md-4"><select id = "postcov" name = "postcov">{% for i in postcovall %}<option value = "{{i.0}}">{{i.0}}</option>{% endfor %}</select></div>
-  <div class = "col-md-3"><label>CSRs &gt= selected coverage: </label></div><div class = "col-md-2"><input id = "postcm"  readonly="readonly" type = "text" value  = ''></div>
+  <div class = "col-md-3"><select id = "postcov" name = "postcov">{% for i in postcovall %}<option value = "{{i.0}}">{{i.0}}</option>{% endfor %}</select></div>
+  <div class = "col-md-3"><label>CSRs &gt;= selected coverage: </label></div><div class = "col-md-2"><input id = "postcm"  readonly="readonly" type = "text" value  = ''></div>
 </div>
 
 <div class= "row">
@@ -49,7 +49,7 @@
 </div>
 
 <div class= "row">
-  <div class = "col-md-4">sam files</div>
+  <div class = "col-md-4">Sam files</div>
   <div class = "col-md-8"><a href = "#" onclick = "ondownload('{% url 'msa_download' jobj.id count 4 %}', '#postcov', '{{postcov.0}}', '{{postcov.1}}'); return false;">Download</a> (zip/sam)</div>
 </div>
 {% if not single %}
