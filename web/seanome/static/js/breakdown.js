@@ -15,8 +15,8 @@ function ondownload(url, cutoff, mincov, maxcov){
 
 
 function createChart(datajson, parent, selectbx){
-    var margin = {top: 20, right: 20, bottom: 50, left: 60},
-    width = 900 - margin.left - margin.right,
+    var margin = {top: 20, right: 20, bottom: 50, left: 120},
+    width = 1100 - margin.left - margin.right,
     height = 300 - margin.top - margin.bottom,
     div = d3.select("#toolbox"),
     xe = d3.extent(datajson, function(d, i ) {return d[0]; }),
@@ -81,7 +81,7 @@ function createChart(datajson, parent, selectbx){
     svg.selectAll("dot")
         .data(datajson)
 	.enter().append("circle")
-        .attr("r", 2)
+        .attr("r", 3)
         .attr("cx", function(d) { return x(d[0]); })
         .attr("cy", function(d) { return y(d[1]); })
         .on("mouseover", function(d) {
