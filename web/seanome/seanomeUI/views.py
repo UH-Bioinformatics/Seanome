@@ -375,11 +375,16 @@ def ajaxJobStatus(request, jid):
     if not request.is_ajax():
         return
     jobj = job.objects.get(pk = jid)
+    logfile = os.path.join(settings.JOBDIR, jid, "log.out")
     status = 0
+    logdat = ""
     if not (jobj.stage == STAGES_REVERSE['queued'] or jobj.stage == STAGES_REVERSE['running']):
         status = 1
+    else:
+        logdat = "".join([i for i in open(logfile)][-50:])
+        
     goto = reverse('runjob', args=[jid])
-    return HttpResponse(json.dumps(dict(status=status, page=goto), separators=(',',':')), content_type = "application/json")
+    return HttpResponse(json.dumps(dict(status=status, page=goto, logdat = logdat), separators=(',',':')), content_type = "application/json")
 
 
 def downloadvcf(request, jid, count):

@@ -6,20 +6,19 @@
 
 
 {% block container %}
-{#<h2>Breakdown</h2>#}
-<div class= "row">
+<div class = "row">
 <div class = "col-md-12">
 <br />
-<div class = "row"><div class = "col-md-4" >Number of samples</div><div class = "col-md-4">{{numgenomes}}</div></div>
-<div class="panel-group" id="accordion2">
-    <div class="panel panel-default" id="panel2">
-        <div class="panel-heading">
-             <h4  data-toggle="collapse" data-target="#collapseTwo" >Pseudo-genome bp count</h4>
+<div class = "row" ><div class = "col-md-4" >Number of samples</div><div class = "col-md-4">{{numgenomes}}</div></div>
+<div class = "panel-group" id = "accordion2">
+    <div class = "panel panel-default" id = "panel2">
+        <div class = "panel-heading">
+             <h4 data-toggle = "collapse" data-target = "#collapseTwo" >Pseudo-genome bp count</h4>
 	</div>
-	<div id="collapseTwo" class="panel-collapse collapse in">
-          <div class="panel-body">
+	<div id = "collapseTwo" class = "panel-collapse collapse in">
+          <div class = "panel-body">
 	    {% for r in genomelens %}
-	    <div class = "row"><div class = "col-md-4">{{r.0}}</div><div class = "col-md-4">{{r.1|intcomma}}</div></div>
+	    <div class = "row" ><div class = "col-md-4" >{{r.0}}</div><div class = "col-md-4" >{{r.1|intcomma}}</div></div>
 	    {% endfor %}
 	    {% if not jobj.single %}
 	  </div>
@@ -27,16 +26,15 @@
     </div>
 </div>
 <hr />
-<div class="panel-group" id="accordion">
-    <div class="panel panel-default" id="panel1">
-        <div class="panel-heading">
-             <h4 data-toggle="collapse" data-target="#collapseOne" >Processing order</h4>
+<div class = "panel-group" id = "accordion">
+    <div class = "panel panel-default" id = "panel1">
+        <div class = "panel-heading">
+             <h4 data-toggle = "collapse" data-target = "#collapseOne" >Processing order</h4>
 	</div>
-	<div id="collapseOne" class="panel-collapse collapse in">
-          <div class="panel-body">
-            <ol class ="dashed" >
-	      {% for r in ordering %}
-	      
+	<div id = "collapseOne" class = "panel-collapse collapse in">
+          <div class= "panel-body">
+            <ol class = "dashed" >
+	      {% for r in ordering %}	      
 	      <li>{{r}}</li>
 	      {% endfor %}
 	    </ol>
@@ -46,42 +44,40 @@
     </div>
 </div>
 <hr />
+
 <h3>Breakdown of CSRs by number of samples</h3>
-<div class= "row col-md-12">Click on a circle to view breakdown</div>
-<div class = "row col-md-12">
+<div class = "row col-md-12" >Click on a bar to view breakdown</div>
+
+<div class = "row col-md-12" >
 {% for i in data %}
  {% if forloop.first %}
-  <div class = "row"><div class = "col-md-4"><strong>Number of samples</strong></div><div class = "col-md-4"><strong>Number of CSRs</strong></div></div>
+  <div class = "row" ><div class = "col-md-4" ><strong>Number of samples</strong></div><div class = "col-md-4" ><strong>Number of CSRs</strong></div></div>
  {% endif %}
-  <div class = "row"><div class = "col-md-4">{{i.label}}</div><div class = "col-md-4">{{i.v}}</div></div>
+  <div class = "row" ><div class = "col-md-4" >{{i.label}}</div><div class = "col-md-4" >{{i.v|intcomma}}</div></div>
 {% endfor %}
 </div>
 
-{#<div id = "breakdown" ></div>#}
-<div id = "breakdown2" {#style = "border: 1px solid #000000;"#} ></div>
+<div id = "breakdown" ></div>
+
 <br />
 </div>
 
-<script type="text/javascript" src="{% static 'js/d3/d3.min.js' %}"></script>
+<script type = "text/javascript" src = "{% static 'js/d3/d3.min.js' %}" ></script>
 
 <script>
 
 function bar(data, parent){
- var margin = {top: 30, right: 40, bottom: 20, left: 150};
- //var margin = {top: 0, right: 40, bottom: 0, left: 50};
  var colors =  [
- "#2484c1", "#65a620", "#7b6888", "#a05d56", "#961a1a", "#d8d23a", "#e98125", "#d0743c", "#635222", "#6ada6a",
  "#0c6197", "#7d9058", "#207f33", "#44b9b0", "#bca44a", "#e4a14b", "#a3acb2", "#8cc3e9", "#69a6f9", "#5b388f",
+ "#2484c1", "#65a620", "#7b6888", "#a05d56", "#961a1a", "#d8d23a", "#e98125", "#d0743c", "#635222", "#6ada6a",
  "#546e91", "#8bde95", "#d2ab58", "#273c71", "#98bf6e", "#4daa4b", "#98abc5", "#cc1010", "#31383b", "#006391",
  "#c2643f", "#b0a474", "#a5a39c", "#a9c2bc", "#22af8c", "#7fcecf", "#987ac6", "#3d3b87", "#b77b1c", "#c9c2b6",
  "#807ece", "#8db27c", "#be66a2", "#9ed3c6", "#00644b", "#005064", "#77979f", "#77e079", "#9c73ab", "#1f79a7"
  ];
 
-
-
-
+ var margin = {top: 30, right: 40, bottom: 20, left: 150};
  var width = 960 - margin.left - margin.right,
-    height = ((data.length+1) * 34) - margin.top - margin.bottom;
+     height = ((data.length+1) * 34) - margin.top - margin.bottom,
  format = d3.format(",d");
 
  var labels = [];
@@ -91,10 +87,11 @@ function bar(data, parent){
   ++i;
  });
 
- var maxval = d3.max(data, function(d){return d.v;});
- var xscale = d3.scale.linear().domain([0, maxval]).range([0,width]);
- var yscale = d3.scale.ordinal().domain(labels).rangeBands([0,height]);
- var svg = d3.select(parent).append("svg")
+ var maxval = d3.max(data, function(d){return d.v;}),
+ xscale = d3.scale.linear().domain([0, maxval]).range([0,width]),
+ yscale = d3.scale.ordinal().domain(labels).rangeBands([0,height]);
+ 
+var svg = d3.select(parent).append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom);
 
@@ -112,79 +109,35 @@ function bar(data, parent){
     .style("cursor", "pointer")
     .on("click", function(d){window.location.assign(d.url);});
 
-var transit = svg.selectAll("rect")
+ var transit = svg.selectAll("rect")
     .data(data)
     .transition()
     .duration(1000) 
     .attr("width", function(d) {return xscale(d.v); });
 
-var transitext = d3.select('#bars')
-.selectAll('text')
-.data(data)
-.enter()
-.append('text')
-.attr({'x':function(d) {return xscale(d.v * 0.4); },'y':function(d,i){ return yscale(d.label)+36; }})
-.text(function(d){ if(d.v == 1){ return d.v + " CSR"; }else {return d.v + " CSRs";} }).style({'fill':'#000','font-size':'14px'});
+ var transitext = d3.select('#bars')
+    .selectAll('text')
+    .data(data)
+    .enter()
+    .append('text')
+    .attr({'x':function(d) {return xscale(d.v * 0.4); },'y':function(d,i){ return yscale(d.label) + 36; }})
+    .text(function(d){ if(d.v == 1){ return d.v + " CSR"; }else {return format(d.v) + " CSRs";} }).style({'fill':'#000','font-size':'14px'});
 
-svg.selectAll("text.name")
-  .data(data)
-  .enter().append("text")
-  .attr("x", margin.left/2)
-  .attr("y", function(d){ return yscale(d.label) + 30; } )
-  .attr("dy", ".36em")
-  .attr("text-anchor", "middle")
-  .attr('class', 'name')
-  .text(function(d,i){if(d.label == '1'){ return d.label + " sample";} else { return d.label + " samples"; } })
-  .style("cursor", "pointer")
-  .on("click", function(d){window.location.assign(d.url);});
-
+ svg.selectAll("text.name")
+    .data(data)
+    .enter().append("text")
+    .attr("x", margin.left/2)
+    .attr("y", function(d){ return yscale(d.label) + 30; } )
+    .attr("dy", ".36em")
+    .attr("text-anchor", "middle")
+    .attr('class', 'name')
+    .text(function(d,i){if(d.label == '1'){ return d.label + " sample";} else { return d.label + " samples"; } })
+    .style("cursor", "pointer")
+    .on("click", function(d){window.location.assign(d.url);});
 }
 
 
-
-function bubbles(data, parent){
-
-var colors =  [
-"#2484c1", "#65a620", "#7b6888", "#a05d56", "#961a1a", "#d8d23a", "#e98125", "#d0743c", "#635222", "#6ada6a",
-"#0c6197", "#7d9058", "#207f33", "#44b9b0", "#bca44a", "#e4a14b", "#a3acb2", "#8cc3e9", "#69a6f9", "#5b388f",
-"#546e91", "#8bde95", "#d2ab58", "#273c71", "#98bf6e", "#4daa4b", "#98abc5", "#cc1010", "#31383b", "#006391",
-"#c2643f", "#b0a474", "#a5a39c", "#a9c2bc", "#22af8c", "#7fcecf", "#987ac6", "#3d3b87", "#b77b1c", "#c9c2b6",
-"#807ece", "#8db27c", "#be66a2", "#9ed3c6", "#00644b", "#005064", "#77979f", "#77e079", "#9c73ab", "#1f79a7"
-];
-
-var diameter = 700, format = d3.format(",d"), 
-bubble = d3.layout.pack()
- .sort(null)
- .size([diameter, diameter])
- .padding(1.5);
-
-var svg = d3.select(parent).append("svg")
- .attr("width", diameter)
- .attr("height", diameter)
- .attr("class", "bubble2");
-var node = svg.selectAll(".node")
- .data(bubble.nodes({children: data}).filter(function(d) { return !d.children; }))
- .enter().append("g")
- .attr("class", "node")
- .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-node.append("title")
- .text(function(d) { return d.label + ": " + format(d.v); });
-node.append("circle")
- .attr("r", function(d) { return d.r; })
- .style("fill", function(d, i ) { return colors[i % colors.length]; })
- .style("cursor", "pointer")
- .on("click", function(d){window.location.assign(d.url);});
-node.append("text")
- .attr("dy", ".9em")
- .style("text-anchor", "middle")
- .style("cursor", "help")
- .on("click", function(d){window.location.assign(d.url);})
- .text(function(d) { return d.label; });
-}
-
-
-$(document).ready(function(){bubbles(JSON.parse('{{tally|safe}}'),"#breakdown");});
-$(document).ready(function(){bar(JSON.parse('{{tally|safe}}'),"#breakdown2");});
+$(document).ready(function(){bar(JSON.parse('{{tally|safe}}'),"#breakdown");});
 </script>
 
 {% endblock %}

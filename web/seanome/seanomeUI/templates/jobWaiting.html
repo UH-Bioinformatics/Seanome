@@ -15,6 +15,9 @@
   <h3>This Job is waiting to be begin processing.</h3>
  {% elif jobj.stage == 2 %}
   <h3>This Job is being processed.</h3>
+  <div class = "row">
+    <div id = "status" class = "col-md-9" style= "max-height:300px;overflow:auto"><pre id = "statusdata" ></pre></div>
+  </div>
 {% endif %}
 
 {% if jobj.stage != -1 %}

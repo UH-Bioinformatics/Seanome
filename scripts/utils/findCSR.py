@@ -74,7 +74,7 @@ def find_csrProducer(payload):
             else:
                hitid, hitseq = getSubSeqFromFasta(genomeseq, hEnd - 1, hStart, True) # nhmmer alignment is 1 based 
          else:
-            print "Parameters not met for alignment %s " % info[0]
+            print >> sys.stderr, "Parameters not met for alignment %s " % info[0]
             continue 
          
          # need to run muscle on the seqs + hitseq 

@@ -1,6 +1,8 @@
 function processResult(data){
     if(data.status == 1){
 	window.location.assign(data.page);
+    } else {
+	$("#statusdata").html(data.logdat);
     }
 }
 
