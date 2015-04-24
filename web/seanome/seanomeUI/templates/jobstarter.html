@@ -6,22 +6,21 @@
 
 {% if form %}
 <form method = "POST" action = "." >
-{% csrf_token %}
-<table>
-{{form.as_table}}
-</table>
-<button type="submit" class="btn btn-default" id = "submitter" >submit</button>
+ {% csrf_token %}
+ <div class="form-group">
+   <label for= "{{form.captcha.id_for_label}}">Captcha: </label>
+   {{form.captcha}}
+ </div>
+ <button type="submit" class="btn btn-default" id = "submitter" >submit</button>
 </form>
 {% else %}
-<p>Connect using SFTP.  Place your data in /upload/{{usr}}.</p>
-address/host: sftp://{{address}}<br />
-username: {{usr}}<br />
-password: {{passwd}}<br />
-
-<strong>Keep the job URL! Required to start your job once you finish uploading your data.</strong><br />
-Job URL: <a href = "{% url 'runjob' job %}" target = "_blank">{{address}}{% url 'runjob' job %}</a>
-
-<p>Once your data has been uploaded.  Please visit the Job URL to continue the submission process.</p>
+ <p>Connect using SFTP.  Place your data in /upload/{{usr}}.</p>
+ address/host: sftp://{{address}}<br />
+ username: {{usr}}<br />
+ password: {{passwd}}<br />
+ <strong>Keep the job URL! Required to start your job once you finish uploading your data.</strong><br />
+ Job URL: <a href = "{% url 'runjob' job %}" target = "_blank">{{address}}{% url 'runjob' job %}</a>
+ <p>Once your data has been uploaded.  Please visit the Job URL to continue the submission process.</p>
 {% endif %}
 
 {% endblock %}
