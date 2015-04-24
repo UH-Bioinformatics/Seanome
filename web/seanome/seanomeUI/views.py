@@ -265,25 +265,45 @@ def ajaxGetSNPs(request, jid, ident):
         jsondat = i[0]
     return HttpResponse(jsondat, content_type = "application/json")    
 
-    
+
 def ajaxGetMSA(request, jid, ident, clean):
     jobj = job.objects.get(pk = jid)
     toplvl = os.path.join(settings.JOBDIR, jid)
-    con = getsqliteDB(toplvl)
-    if jobj.single == False:
-        qry =  QUERY_TRIMMED_CSR_AS_SEQS
-        cons = "trimmed_consensus"
-        if clean == '0':
-            qry = QUERY_CSR_AS_SEQS
-            cons = "consensus"
-        data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN %(contbl)s AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = qry, contbl = cons), (ident,) )
-        rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), "\n".join([">%s\n%s"%(i,s,)  for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ), ) for r in data ]
-        fastadata = "%s%s"%(rows[0][1], rows[0][2])
+    dbLoc = os.path.join(toplvl,  settings.SUFFIX_DB_LOCATION)
+    cline = """/home/celery/bin/sam_to_msafasta.py -i %s -d %sseanome.db3 -t -w %s """    
+
+    if jobj.single == False and  clean == '0':
+        cline = """/home/celery/bin/sam_to_msafasta.py -i %s -d %s -w %s """%(ident, dbLoc, toplvl)    
     else:
-        data = con.execute("""SELECT B.fileID, B.sequence FROM trimmed_consensus AS B WHERE B.fileID = ?;""", (ident,) )
-        rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), ) for r in data ]
-        fastadata = "%s"%(rows[0][1])        
+        cline = """/home/celery/bin/sam_to_msafasta.py -i %s -d %s -w %s -t"""%(ident, dbLoc, toplvl)    
+
+    child = subprocess.Popen(str(cline),
+                             stdout=subprocess.PIPE,
+                             shell=(sys.platform!="win32"),
+                             close_fds = True)
+    fastadata= child.communicate()[0]
+
     return HttpResponse(fastadata, content_type = "application/fasta")    
+
+
+# def ajaxGetMSA(request, jid, ident, clean):
+#     jobj = job.objects.get(pk = jid)
+#     toplvl = os.path.join(settings.JOBDIR, jid)
+#     con = getsqliteDB(toplvl)
+#     if jobj.single == False:
+#         qry =  QUERY_TRIMMED_CSR_AS_SEQS
+#         cons = "trimmed_consensus"
+#         if clean == '0':
+#             qry = QUERY_CSR_AS_SEQS
+#             cons = "consensus"
+#         data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN %(contbl)s AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = qry, contbl = cons), (ident,) )
+#         rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), "\n".join([">%s\n%s"%(i,s,)  for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ), ) for r in data ]
+#         fastadata = "%s%s"%(rows[0][1], rows[0][2])
+#     else:
+#         data = con.execute("""SELECT B.fileID, B.sequence FROM trimmed_consensus AS B WHERE B.fileID = ?;""", (ident,) )
+#         rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), ) for r in data ]
+#         fastadata = "%s"%(rows[0][1])        
+#     return HttpResponse(fastadata, content_type = "application/fasta")    
 
 
 def viewAlignments(request, jid, count, template):
