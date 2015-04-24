@@ -11,11 +11,11 @@
   content: "\e080";
 }
 .header {
-  background: url('../images/banner.png');
+  background: url('../images/bannerv3.png');
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  height: 240px;
+  height: 155px;
 }
 @media print {
   .non-printable {
