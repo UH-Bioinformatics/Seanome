@@ -7,6 +7,13 @@
 {% if form %}
 <form method = "POST" action = "." >
  {% csrf_token %}
+ {% if form.captcha.errors %}
+ <ol>
+   {% for error in form.captcha.errors %}
+    <li><strong>{{ error|escape }}</strong></li>
+   {% endfor %}
+ </ol>
+ {% endif %}
  <div class="form-group">
    <label for= "{{form.captcha.id_for_label}}">Captcha: </label>
    {{form.captcha}}
