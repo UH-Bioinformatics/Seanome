@@ -63,7 +63,7 @@ def seanomeGO(workdir, jid, idmap):
     sparams = json.loads(jobj.scriptparams)
     jobj.save()
 
-    os.system("""chmod -R 755 %s"""%(workdir))
+    os.system("""chmod -R 775 %s"""%(workdir))
     setupUserEnv(workdir)
     close_old_connections()
     
@@ -164,6 +164,12 @@ def seanomeGOstage2(workdir, jid, cutoffs):
         catdir = os.path.join(workdir, "concat_trimmed")
         for c in getSizes(workdir):
             os.system("""combineAlignment.py -d %(dbase)s -c %(cnt)s -o %(outprefix)s """%dict(dbase =  os.path.join(workdir, "csr", "seanome.db3"), cnt = c, outprefix = os.path.join(catdir, "%s_concat"%(c)) ) )
+    
+
+    # generate the FST histogram image
+    os.system( """mkdir %s"""%( os.path.join(workdir, "images") ) )
+    os.system( """fst.py -d %s -w %s """ %(os.path.join(workdir, "csr", "seanome.db3"), os.path.join(workdir, "images") ))
+
     rdis_semaphore.release()
     jobj = job.objects.get(pk = jid)
     jobj.stage = STAGES_REVERSE['done-s2']

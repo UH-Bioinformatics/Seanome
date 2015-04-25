@@ -12,8 +12,8 @@
 <div class = "row" ><div class = "col-md-4" >Number of samples</div><div class = "col-md-4">{{numgenomes}}</div></div>
 <div class = "panel-group" id = "accordion2">
     <div class = "panel panel-default" id = "panel2">
-        <div class = "panel-heading">
-             <h4 data-toggle = "collapse" data-target = "#collapseTwo" >Pseudo-genome bp count</h4>
+        <div class = "panel-heading" data-toggle = "collapse" data-target = "#collapseTwo">
+             <h3 data-toggle = "collapse" data-target = "#collapseTwo" >Pseudo-genome bp count</h3>
 	</div>
 	<div id = "collapseTwo" class = "panel-collapse collapse in">
           <div class = "panel-body">
@@ -28,8 +28,8 @@
 <hr />
 <div class = "panel-group" id = "accordion">
     <div class = "panel panel-default" id = "panel1">
-        <div class = "panel-heading">
-             <h4 data-toggle = "collapse" data-target = "#collapseOne" >Processing order</h4>
+        <div class = "panel-heading"  data-toggle = "collapse" data-target = "#collapseOne">
+             <h3 data-toggle = "collapse" data-target = "#collapseOne" >Processing order</h3>
 	</div>
 	<div id = "collapseOne" class = "panel-collapse collapse in">
           <div class= "panel-body">
@@ -45,8 +45,13 @@
 </div>
 <hr />
 
+<h3>FST distribution of CSRs with SNPs</h3>
+<div class = "row col-md-12"><img src = "{% url 'fst_histogram_png' jobj.id %}" alt ="fst histogram" /></div>
+<hr />
+
 <h3>Breakdown of CSRs by number of samples</h3>
 <div class = "row col-md-12" >Click on a bar to view breakdown</div>
+
 
 <div class = "row col-md-12" >
 {% for i in data %}
@@ -56,6 +61,8 @@
   <div class = "row" ><div class = "col-md-4" >{{i.label}}</div><div class = "col-md-4" >{{i.v|intcomma}}</div></div>
 {% endfor %}
 </div>
+
+
 
 <div id = "breakdown" ></div>
 

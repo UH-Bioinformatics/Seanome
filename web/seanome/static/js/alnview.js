@@ -1,18 +1,45 @@
+
 var MSA;
 
-function draw(baseurl){
-    drawMSA(baseurl);
-    drawTable(baseurl);
+
+function buildAlignSelector(data, jid, prefix, baseurl){
+
+    $("#tbldat").html('<table cellpadding="0" cellspacing="0" border="0" class="display" id="tabledat"></table>' );
+    
+    $("#tabledat").dataTable( { "order": [[2,'desc']], "pageLength": 5, "lengthChange": false, "data" : data,
+				"columns":[{"title": "file id"},{"title": "File name"},{"title": "Has SNPs?"}],
+				"columnDefs": [ { "targets": [0], "visible": false, "searchable": false}],
+				"fnRowCallback": function( nRow, aData, iDisplayIndex, iDisplayIndexFull ) {
+				    $('td:eq(0)', nRow).html(prefix + "_" + aData[1]);
+				    $('td:eq(1)', nRow).html( ((aData[2] == 1)?"Yes":"No"));
+				}
+			      }
+			    );
+    $("#tabledat tbody").on('click', 'tr', function(e) {
+	var aData = $("#tabledat").dataTable().fnGetData(this);
+	key = jid + "/"+ aData[0] + "/";
+	draw(key, baseurl);
+    } );
 }
 
 
-function drawMSA(baseurl){
+
+
+
+function draw(part, baseurl){
+    drawMSA(part, baseurl);
+    drawTable(part, baseurl);
+    $("#disinfo").val(part);
+}
+
+
+function drawMSA(part, baseurl){
     $("#msaParent").html("<div id='msa'></div>");
-    if((!$("#aln").val()) || (!$("input[name=clean]:checked").val()) )
+    if( !(part) || ! $("input[name=clean]:checked").val() )
 	return;
-    var url = baseurl + "/ajax/msa/"+$("#aln").val() + $("input[name=clean]:checked").val() + "/";
+    var url = baseurl + "/ajax/msa/"+ part + $("input[name=clean]:checked").val() + "/";
     /* http://sniper.biojs-msa.org:9090/snippets/msa_show_menu */
-    var opts = {};
+     var opts = {};
     opts.el =  document.getElementById('msa');
     opts.el.textContent = "loading";
     opts.vis = {conserv: false, overviewbox: false, labelId : false};
@@ -55,11 +82,11 @@ function drawMSA(baseurl){
 function gotopos(offset){MSA.g.zoomer.setLeftOffset(offset)}
 
 
-function drawTable(baseurl){
+function drawTable(part, baseurl){
     $("#snpParent").html("");
     if($("input[name=clean]:checked").val() != 1)
 	return;
-    url = baseurl + "/ajax/snp/"+$("#aln").val();
+    url = baseurl + "/ajax/snp/"+ part;
     $.get(url, function(data){
 	if(data.length == 0){ return;}
 	var keys = Object.keys(data[0].counts),

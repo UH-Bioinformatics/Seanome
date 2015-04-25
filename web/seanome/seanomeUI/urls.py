@@ -19,6 +19,7 @@ urlpatterns = patterns('seanomeUI.views',
                        url(r'^ajax/job/status/(?P<jid>\d+)/$', 'ajaxJobStatus', name ="ajax_status"),
                        url(r'^ajax/msa/(?P<jid>\d+)/(?P<ident>\d+)/(?P<clean>[01])/$', 'ajaxGetMSA', name ="ajax_msa"),
                        url(r'^ajax/snp/(?P<jid>\d+)/(?P<ident>\d+)/$', 'ajaxGetSNPs', name ="ajax_snps"),
+                       url(r'^images/fst/histogram/(?P<jid>\d+)/$', 'histogram',name ="fst_histogram_png"),
 )
 
 #urlpatterns += patterns('',

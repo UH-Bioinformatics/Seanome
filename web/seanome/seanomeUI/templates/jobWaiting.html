@@ -5,16 +5,16 @@
 {% block container %}
 
 {% if jobj.stage == -1 %}
-  <h3>This Job has already been canceled</h3>
+  <h3 id = "hdr" >ThisJob has already been canceled</h3>
   <p>To start a new job, please go <a href = "{% url 'startjob' %}">here</a></p>
   {% if errors %}
   <p> Job was canceled due to not all common labels being in pairs</p>
   {#{{errors}}#}
   {% endif %}
  {% elif jobj.stage == 1%}
-  <h3>This Job is waiting to be begin processing.</h3>
+  <h3 id = "hdr" >Job {{jobj.id}} is waiting to be begin processing.</h3>
  {% elif jobj.stage == 2 %}
-  <h3>This Job is being processed.</h3>
+  <h3 id = "hdr" >Job {{jobj.id}} is being processed.</h3>
   <div class = "row">
     <div id = "status" class = "col-md-9" style= "max-height:300px;overflow:auto"><pre id = "statusdata" ></pre></div>
   </div>

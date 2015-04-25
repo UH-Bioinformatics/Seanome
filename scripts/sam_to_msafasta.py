@@ -14,8 +14,9 @@ from utils.utils import removeFiles, CONSENSUS_NAME
 
 def expandSAM(args, curs):
     for row in curs:
-        bamfile = os.path.join(args.work, "%s.bam"%(row[0]))
-        bamidxfile = os.path.join(args.work, "%s.bam.bai"%(row[0]))
+        
+        bamfile = os.path.join(args.work, "%s_%s.bam"%(args.prefix, row[0]))
+        bamidxfile = os.path.join(args.work, "%s_%s.bam.bai"%(args.prefix, row[0]))
         with open(bamfile, "wb") as o:
             o.write(row[1])
         with open(bamidxfile, "wb") as o:
@@ -43,7 +44,8 @@ if __name__ == "__main__":
     parser.add_argument('-w', '--work', type = str, default = ".", help = "Working directory path" )
     parser.add_argument('-i', '--id', type = str, required = True, help = "Either a fileID or filename" )
     parser.add_argument('-d', '--database',  required = True, help = "Seanome sqlite db")
-    parser.add_argument('-t', '--trimmed',  required = True, action = "store_true", help = "Seanome sqlite db")
+    parser.add_argument('-t', '--trimmed',  required = False, action = "store_true", help = "Generate information from the trimmed results")
+    parser.add_argument('-p', '--prefix',  required = True, default = "", help = "Prefix for temp files")
     
     args = parser.parse_args()
 

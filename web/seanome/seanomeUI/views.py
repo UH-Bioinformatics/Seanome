@@ -1,6 +1,8 @@
 from django.template import RequestContext
 from django.http import HttpResponseRedirect, HttpResponse, StreamingHttpResponse
 
+from django.views.decorators.http import condition
+
 from django.shortcuts import render_to_response, render
 
 from django.conf import settings
@@ -32,13 +34,18 @@ import sqlite3
 import yaml
 import itertools
 import cStringIO as StringIO
-
+import datetime
 from Bio import AlignIO
 
 # also in the utils folder but that is located somewhere else..
 QUERY_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM csr GROUP BY fileID"""
 QUERY_TRIMMED_CSR_AS_SEQS = """SELECT fileID, group_concat(seqID, '\t') AS IDs, group_concat(sequence, '\t') AS SEQS FROM trimmed_csr GROUP BY fileID"""
 DOWNLOAD_TYPE = dict(post_trim_cat = 0, post_trim_aln = 1, post_trim_sam = 4, pre_trim_aln = 2, pre_trim_sam = 3, all = 5)
+
+        
+def staticPage(request, template):
+    return render_to_response(template, dict(msg = "Hello World!"), context_instance = RequestContext(request) )
+
 
 #http://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks-in-python
 def chunks(l, n):
@@ -270,12 +277,13 @@ def ajaxGetMSA(request, jid, ident, clean):
     jobj = job.objects.get(pk = jid)
     toplvl = os.path.join(settings.JOBDIR, jid)
     dbLoc = os.path.join(toplvl,  settings.SUFFIX_DB_LOCATION)
-    cline = """/home/celery/bin/sam_to_msafasta.py -i %s -d %sseanome.db3 -t -w %s """    
+    script = os.path.join(settings.USER_BIN, "sam_to_msafasta.py")
+    cline = """ """    
 
     if jobj.single == False and  clean == '0':
-        cline = """/home/celery/bin/sam_to_msafasta.py -i %s -d %s -w %s """%(ident, dbLoc, toplvl)    
+        cline = """%s -i %s -d %s -w %s -p %s"""%(script, ident, dbLoc, settings.SCRATCH_DIR, jid)    
     else:
-        cline = """/home/celery/bin/sam_to_msafasta.py -i %s -d %s -w %s -t"""%(ident, dbLoc, toplvl)    
+        cline = """%s -i %s -d %s -w %s -t -p %s"""%(script, ident, dbLoc, settings.SCRATCH_DIR, jid)    
 
     child = subprocess.Popen(str(cline),
                              stdout=subprocess.PIPE,
@@ -306,27 +314,47 @@ def ajaxGetMSA(request, jid, ident, clean):
 #     return HttpResponse(fastadata, content_type = "application/fasta")    
 
 
+
+#def lastmod(request, jid, count, template):
+#    return datetime.datetime(year = 2000, month = 1, day = 1)
+
+#@condition(last_modified_func=lastmod)
 def viewAlignments(request, jid, count, template):
     jobj = job.objects.get(pk = jid)
     if jobj.stage != STAGES_REVERSE['done-s2']:
         return HttpResponseRedirect(reverse('runjob', args = [jid]))
+    ckey = "seanome_viewaln_%s_%s"%(jid, count)
+
+    data = cache.get(ckey, None)
+    if data:
+        return render_to_response(template, data, context_instance = RequestContext(request) )
+
     count = int(count)
     toplvl = os.path.join(settings.JOBDIR, jid)
     con = getsqliteDB(toplvl)
     # all the files that exist at a given species count...
-    # 
-    hasSNPs = []
-    noSNPs = []
+    #
+    tally = []
+    # hasSNPs = []
+    # noSNPs = []
+    prefix = ""
     for r in getSpecificFilesByMemberCount(con, count, True):
-        if r[3]:
-            hasSNPs.append( (r[0], r[1], True,) )
-        else:
-            noSNPs.append((r[0], r[1], False,) )
+        s = r[0].split("_")
+        prefix = s[0]
+        tally.append( [r[1], "_".join(s[1:]), 1 if r[3] else 0,] )
+    #     if r[3]:
+    #         hasSNPs.append( (r[0], r[1], True,) )
+    #     else:
+    #         noSNPs.append((r[0], r[1], False,) )
     
-    tally = natsort.natsorted(hasSNPs) + natsort.natsorted(noSNPs) 
-    #natsort.natsorted( [ (r[0], r[1], True if r[3] else False, ) for r in getSpecificFilesByMemberCount(con, count, True)] )
+    #tally = natsort.natsorted(hasSNPs) + natsort.natsorted(noSNPs) 
+    #tally = natsort.natsorted( [ (r[0], r[1], True if r[3] else False, ) for r in getSpecificFilesByMemberCount(con, count, True)] )
+    #tally =  [ (r[0], r[1], True if r[3] else False, ) for r in getSpecificFilesByMemberCount(con, count, True)] 
     #tally = natsort.natsorted( getSpecificFilesByMemberCount(con, count).fetchall() )
-    return render_to_response(template, dict(jobj = jobj, count = count, showoptions = True, tally = tally), context_instance = RequestContext(request) )
+    #data = dict(jobj = jobj, count = count, showoptions = True, tally = list(getSpecificFilesByMemberCount(con, count, True)) )
+    data = dict(jobj = jobj, count = count, showoptions = True, tally = json.dumps( tally, separators=(',',':')), prefix = prefix)
+    cache.add(ckey, data)
+    return render_to_response(template, data, context_instance = RequestContext(request) )
 
 
 def resultFilter(request, jid, count, template):
@@ -386,10 +414,6 @@ def cancelJob(request, jid, template):
         return HttpResponseRedirect(reverse('startjob'))
     return render_to_response(template, dict(jobj = jobj), context_instance = RequestContext(request) )        
 
-        
-def staticPage(request, template):
-    return render_to_response(template, dict(msg = "Hello World!"), context_instance = RequestContext(request) )
-
 
 def ajaxJobStatus(request, jid):
     if not request.is_ajax():
@@ -401,10 +425,11 @@ def ajaxJobStatus(request, jid):
     if not (jobj.stage == STAGES_REVERSE['queued'] or jobj.stage == STAGES_REVERSE['running']):
         status = 1
     else:
-        logdat = "".join([i for i in open(logfile)][-50:])
+        #logdat = open(logfile).read()
+        logdat = "".join([i for i in open(logfile) if i.strip()][-500:])
         
     goto = reverse('runjob', args=[jid])
-    return HttpResponse(json.dumps(dict(status=status, page=goto, logdat = logdat), separators=(',',':')), content_type = "application/json")
+    return HttpResponse(json.dumps(dict(id = jid, status=status, page=goto, logdat = logdat), separators=(',',':')), content_type = "application/json")
 
 
 def downloadvcf(request, jid, count):
@@ -439,6 +464,10 @@ def downloadvcf(request, jid, count):
     return streamArchive(zstream, "Job_%s_filter_%s_SNPs.zip"%(jid,count) )    
     
 
+def histogram(request, jid):
+    imgdat = open(os.path.join(settings.JOBDIR, jid, "images", "fst_histogram.png")).read()
+    return HttpResponse(imgdat, content_type = "image/png")
+   
 
 def MSADownload(request, jid, count, tid): #msa_download
     ### TODO: DLS - figure out a nice way to not iterator the sqlite execute command before dealing with the streaming
