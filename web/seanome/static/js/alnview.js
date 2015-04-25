@@ -1,5 +1,6 @@
 
 var MSA;
+var Fasta = require('biojs-io-fasta');
 
 
 function buildAlignSelector(data, jid, prefix, baseurl){
@@ -33,6 +34,12 @@ function draw(part, baseurl){
 }
 
 
+function compare(a, b){
+    if(a.name == 'Consensus')
+	return -1;
+    return a.name.localeCompare(b.name);
+}
+
 function drawMSA(part, baseurl){
     $("#msaParent").html("<div id='msa'></div>");
     if( !(part) || ! $("input[name=clean]:checked").val() )
@@ -45,25 +52,30 @@ function drawMSA(part, baseurl){
     opts.vis = {conserv: false, overviewbox: false, labelId : false};
     opts.zoomer = {boxRectHeight: 1,
                    boxRectWidth: 1,
-                   labelWidth: 210,
+                   labelWidth: 100,
                    labelIdLength: 0,
+		   labelNameLength: 200,
                    alignmentWidth: 940,
                    alignmentHeight: 200,
-                   residueFont: "18px mono monospace",
+                   residueFont: "16px mono monospace",
                    labelFontsize: "9px",
                    labelLineHeight: "30px",
                    markerFontsize: "16px",
                    columnWidth: 30,
                    rowHeight: 20
                   };
-    biojs.io.fasta.parse.read(url, function(seqs) {
+    
+    Fasta.read(url, function(err, seqs) {
 	seqs.forEach(function(seq){ seq.name = $.trim(seq.name);
-				    var idx = seq.name.indexOf(" ");
+				    //var idx = seq.name.indexOf(" ");
+				    var idx = seq.name.indexOf("_");
 				    if(idx != -1)
-					seq.name = seq.name.substring(0, idx);
+					seq.name = seq.name.substring(idx+1);
+				    //seq.name = seq.name.substring(0, idx);
 	                            else if(seq.name.length > 22)
 					seq.name = seq.name.substring(0,22);
 				  });
+	//seqs.sort(compare);
 	opts.zoomer['alignmentHeight'] = Math.min(20 * seqs.length, 200);
 	opts.seqs = seqs;
         opts.speed = true;
