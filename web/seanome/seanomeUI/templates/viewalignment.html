@@ -2,16 +2,14 @@
 {% load staticfiles %}
 {% load markdown_deux_tags %}
 {% load django_select2_tags %}
-{% load cache %}
 
 {% block doctype %}{% endblock %}
-{% block title %} - Alignment view for {{count}}{% endblock %}
+{% block title %} - Alignment view for CSRs of {{count}} sample(s){% endblock %}
 
 {% block head %}
 <link href="{% static 'css/msa.min.css' %}" rel="stylesheet">
 <link href="{% static 'css/jquery.dataTables.css' %}" rel="stylesheet">
 <link href="{% static 'css/dataTables.colReorder.css' %}" rel="stylesheet">
-
 {% endblock %}
 
 {% block container %}
@@ -33,7 +31,7 @@
 {% else %}
     <input type="radio" name="clean" value="1" onclick = "draw($('#disinfo').val(), '{% url 'startjob' %}');" checked="checked">Post trimming<br />
     <input type="radio" name="clean" value="0" onclick = "draw($('#disinfo').val(), '{% url 'startjob' %}');" >Pre trimming
-{%endif%}
+{% endif %}
   </div>
 </div>
 
@@ -44,19 +42,9 @@
 <br />
 
 {% import_django_select2_js_css %}
-
-
-<script type="text/javascript" src="{% static 'js/biojs-io-fasta.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/msa.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery/jquery.dataTables.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/alnview.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery/dataTables.colReorder.js' %}"></script>
-
-{#<script type="text/javascript" src="http://cdn.datatables.net/plug-ins/a5734b29083/integration/bootstrap/3/dataTables.bootstrap.js"></script>#}
-<script type="text/javascript">
-$(document).ready(function(){
- var data = JSON.parse('{{tally|safe}}');
- buildAlignSelector(data, "{{jobj.id}}", "{{prefix}}", "{% url 'startjob' %}");
-});
-</script>
+<script type="text/javascript">$(document).ready(function(){buildAlignSelector( JSON.parse('{{tally|safe}}'), "{{jobj.id}}", "{{prefix}}", "{% url 'startjob' %}");});</script>
 {% endblock %}
