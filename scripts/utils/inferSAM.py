@@ -196,7 +196,7 @@ class SAM_BUILDER():
 
 
     def processSingleRef(self, samfile, name, refStart, refEnd, refSeq, isReversed, combinedOut, header, readgroupID):
-        myReads = samfile.fetch(name, refStart, refEnd)
+        myReads = samfile.fetch(name, refStart, refEnd + 1)
         coverage = 0
         for read in (q for q in myReads if not q.is_unmapped):
             startInRef, startInRead = self.computeStartPositions(read, refStart, refEnd, isReversed)
@@ -233,14 +233,14 @@ class SAM_BUILDER():
             
             # print "startInRef is %s" % (startInRef)
             # print "shiftedStartRef is %s"  % shiftedStartRef
-
+            
             # print "startInRead is %s"  % startInRead
             # print "shiftedStartRead is %s" % (shiftedStartRead)
-
+            
             # print readCigar
             # print refString
             # print readString
-            # inspecting columns and inserting gaps or deleting Inserts from read as necessary
+                # inspecting columns and inserting gaps or deleting Inserts from read as necessary
             posRef = 0
             posRead = 0
             posCigar = 0
@@ -250,9 +250,9 @@ class SAM_BUILDER():
             newQualString = ""
 
             while posRef < len(refString) and posRead < len(readString):
-                #print refString[:posRef+1]
-                #print readString[:posRead+1]
-                #print readCigar[:posCigar+1]
+                #    print refString[:posRef+1]
+                #    print readString[:posRead+1]
+                #    print readCigar[:posCigar+1]
                 if refString[posRef] == "-":
                     if readCigar[posCigar] == "I":
                         newReadString += readString[posRead]
@@ -289,18 +289,22 @@ class SAM_BUILDER():
                     posRef += 1
                     posRead += 1
                     posCigar += 1
-                #print tempString
-                #print ""
-                #raw_input()
+                #    print tempString
+                #    print ""
+                #    #raw_input()
 
             compactCigar = self.compressCigar(newCigarString)
             samData = self.generateSamInfo(name, read, newReadString, compactCigar, shiftedStartRef, 0, newQualString, readgroupID)
             
             #DEBUGGING
-            #print "refStr : %s" % refString
-            #print "tempStr: %s" % tempString
-            #print "cigrStr: %s" % newCigarString
-            #print "cmpCigr: %s\n" % compactCigar
+            # print "refStr : %s" % refString
+            # print "tempStr: %s" % tempString
+            # print "cigrStr: %s" % newCigarString
+            # print "cmpCigr: %s\n" % compactCigar
+            # print posRef
+            # print len(refString)
+            # print posRead
+            # print len(readString)
             
             combinedOut.write(samData) 
             coverage += 1
@@ -402,5 +406,8 @@ class SAM_BUILDER():
         bamidxdat = open("%s.bai"%(bamout), "rb").read()
 
         newcon = self.updateConsensus(bamout)
+        if len(newcon) != int(refs[0][1]):
+            print >> sys.stderr, "Con length mismatch : %s"%(bamout)
+            print >> sys.stderr , self.data
         removeFiles([samout, bamout, "%s.bai"%(bamout)])
         return samdat, bamdat, bamidxdat, self.name, groupdata.values(), newcon
