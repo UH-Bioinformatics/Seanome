@@ -60,6 +60,9 @@ def computeFST(popLst):
     dblread2 = (2.0 * numReads2)
     dbltotal = (2.0 * totReads)
 
+    if dblread1 == 0 or dblread2 == 0 :
+        return float("nan")
+
     SSW = (dw[0] / dblread1) + (dw[1] / dblread2)
     SSA = (((dAP + dw[0]) / dbltotal) - (dw[0] / dblread1)) + (((dAP + dw[1]) / dbltotal) - (dw[1] / dblread2))
     dfW = (numReads1 - 1.0) + (numReads2 - 1.0)
@@ -135,10 +138,12 @@ def main():
                 idx += 1
                 pops.append([{ref : int(parts[0]), alts : int(parts[1])}] )
         #print pops
-        result = computeFST(pops)
-        #print result
-        if not math.isnan(result):
-            fsts.append(result)
+        for x in xrange(len(pops)):
+            for y in xrange(x+1, len(pops)):
+                result = computeFST([pops[x], pops[y]])
+                #print result
+                if not math.isnan(result):
+                    fsts.append(result)
     if fsts:
         makeHistogram(fsts, args.work, prefix = args.prefix)    
     else:
