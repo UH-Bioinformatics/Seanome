@@ -465,9 +465,17 @@ def downloadvcf(request, jid, count):
     
 
 def histogram(request, jid):
-    imgdat = open(os.path.join(settings.JOBDIR, jid, "images", "fst_histogram.png")).read()
+    imgfile = os.path.join(settings.JOBDIR, jid, "images", "fst_histogram.png")
+    if not os.path.exists(imgfile):
+        #imgfile = os.path.join(settings.JOBDIR,  settings.SCRATCH_DIR, "%s_fst_histogram.png"%(jid) )
+        #if not os.path.exists(imgfile):
+        #    script = os.path.join(settings.USER_BIN, "fst.py")
+        #    os.system( """%s -d %s -w %s -p %s """ %(script, os.path.join(settings.JOBDIR, jid, "csr", "seanome.db3"), os.path.join(settings.JOBDIR,  settings.SCRATCH_DIR), jid ))
+        pass
+
+    imgdat = open(imgfile).read()
     return HttpResponse(imgdat, content_type = "image/png")
-   
+
 
 def MSADownload(request, jid, count, tid): #msa_download
     ### TODO: DLS - figure out a nice way to not iterator the sqlite execute command before dealing with the streaming
