@@ -15,7 +15,7 @@ def producer(info):
     seqs = "\n".join([">%s\n%s"%(str(i), str(s)) for i, s in zip(info[1].split("\t"), info[2].split("\t"))])
     i = AlignIO.read(StringIO.StringIO(seqs), 'fasta')        
     si = AlignInfo.SummaryInfo(i)
-    mySeq = si.dumb_consensus(threshold = 0.1, ambiguous = "N")
+    mySeq = si.dumb_consensus(threshold = 0.0001, ambiguous = "N")
     return info[0], str(mySeq)
 
 
