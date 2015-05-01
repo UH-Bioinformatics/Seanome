@@ -86,8 +86,11 @@ def seanomeGO(workdir, jid, idmap):
         except:
             pass
 
+
+    configfile = dict(libraries=libs, findcsr = dict( minlen = str(sparams.get('minlen',settings.MIN_SEQ_LEN) ) , msim = str(sparams.get('sim', settings.MIN_SEQ_SIM) ) ) )
+
     with open(os.path.join(workdir, "config.yaml"), "w") as ymout:
-        yaml.dump(dict(libraries=libs), ymout)
+        yaml.dump(configfile, ymout)
  
     with open(os.path.join(workdir, "coverageLocation.yaml"), "w") as ymout:
         if sparams.get("samples", "multi") != "multi" and len(libs) <= 2:

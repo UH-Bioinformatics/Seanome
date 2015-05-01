@@ -11,18 +11,33 @@ from utils.sqlitedb import QUERY_CSR_AS_SEQS, QUERY_TRIMMED_CSR_AS_SEQS
 from collections import defaultdict
 import itertools 
 
+
+#http://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks-in-python
+def chunks(l, n):
+    """ 
+    Yield successive n-sized chunks from l. 
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
+
+
 def concatAlignment(con, specnumber, outfile):
-    tally = [ row[0] for row in con.execute("""SELECT A.fileID FROM (SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID ) AS A WHERE size = ? ;""", (specnumber,) ) ]
+    #tally = [ row[0] for row in con.execute("""SELECT A.fileID FROM (SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID ) AS A WHERE size = ? ;""", (specnumber,) ) ]
+    tally = [ row[0] for row in con.execute("""SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID HAVING size = ?;""", (specnumber,) ) ]
     
     #TODO: Need a clean way to gather what species identifiers exist.
-
     species = set()
     dat = []
     payload = defaultdict(list)
-
-    for r in con.execute("""SELECT A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A  where A.fileID IN ("""%dict(csr_as_seqeuences = QUERY_TRIMMED_CSR_AS_SEQS) + ",".join("?"*len(tally)) + """) ORDER BY A.fileID;""", tuple(tally) ):        
-        species.update( ( s.split("_")[0] for s in r[0].split("\t") ) )
-        dat.append( [ (i.split("_")[0],s,)  for i, s in itertools.izip(r[0].split("\t") , r[1].split("\t") ) ] )
+    query = """SELECT A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A  where A.fileID IN (""" % dict(csr_as_seqeuences = QUERY_TRIMMED_CSR_AS_SEQS)
+    for ctally in chunks(tally, 100):
+        for r in con.execute(query + ",".join("?"*len(ctally)) + """) ORDER BY A.fileID;""", tuple(ctally) ):        
+            idents = [ s.split("_")[0] for s in r[0].split("\t") ]
+            species.update( idents )
+            dat.append( [ (i, s,)  for i, s in itertools.izip(idents, r[1].split("\t") ) ] )
+            #species.update( ( s.split("_")[0] for s in r[0].split("\t") ) )
+            #dat.append( [ (i.split("_")[0], s,)  for i, s in itertools.izip(r[0].split("\t") , r[1].split("\t") ) ] )
     species = list(species)
 
     for d in dat:
@@ -40,9 +55,8 @@ def concatAlignment(con, specnumber, outfile):
             s = "".join(v)
             print >> o, ">%s\n%s"%(k, s)
             seqs.append(SeqRecord(Seq(s), id = k) )
-    SeqIO.write(seqs, "%s.msa"%(outfile), "clustal")
-
-
+    os.system("""seqret  -sequence %s.fasta -sformat1 fasta -outseq %s.msa -osformat2 clustal"""%(outfile, outfile) )
+    #SeqIO.write(seqs, "%s.msa"%(outfile), "clustal")
 
 
 if __name__ == "__main__":

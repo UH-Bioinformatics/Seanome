@@ -177,13 +177,13 @@ def buildMakeSamScript(childname, ident, threads, runJelly = True):
          return ["%s.bam"%(ident), "%s.bam.bai"%(ident), "%s_pseudo_ref_parts.fasta"%(ident), "%s_pseudo_ref.fasta"%(ident), None ]
 
 
-def buildChildRunner(args, children_scripts, passalongs, multi, threads = 1, largesingle = False):
+def buildChildRunner(args, children_scripts, passalongs, multi, parameters, threads = 1, largesingle = False):
    o = open(SAMPLE_RUNNER%(1), "w")
    printBashHeader(o)
    if multi:
       oo = open(SAMPLE_RUNNER%(2), "w") 
       printBashHeader(oo)
-      bashargsparse(oo, onlyparams = args.advance)
+      bashargsparse(oo, onlyparams = args.advance, mlen = parameters.get('findcsr', {}).get('minlen', MINLEN) , msim = parameters.get('findcsr', {}).get('minsim', MINSIM))
    if args.jobs != 1:
       proc = []
       for c, cname in enumerate(children_scripts):
@@ -353,7 +353,7 @@ def generateMulti(args, largesingle = False):
    threads = max(1, int(math.floor( float(args.threads) / float(args.jobs))))
    parameters = yaml.load(open(args.config))
    children_scripts, passalongs = buildSampleScripts(args, parameters, threads, False)
-   buildChildRunner(args, children_scripts, passalongs, True, threads, largesingle)
+   buildChildRunner(args, children_scripts, passalongs, True, parameters, threads, largesingle)
    threads = args.threads   
    with open(MAIN_SCRIPT, "w") as o:
       commonMainScript(o, args, threads, True)  
@@ -384,7 +384,7 @@ def generateSingle(args):
       generateMulti(args, largesingle = True)
       return
    children_scripts, passalongs = buildSampleScripts(args, parameters, threads, True)
-   buildChildRunner(args, children_scripts, passalongs, False, threads)
+   buildChildRunner(args, children_scripts, passalongs, False, parameters, threads)
    threads = args.threads
    with open(MAIN_SCRIPT, "w") as o:
       commonMainScript(o, args, threads, False)

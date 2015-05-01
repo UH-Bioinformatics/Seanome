@@ -101,7 +101,6 @@ def processVCF(fname, stream):
     return retdat
 
 
-
 def main():
     parser = argparse.ArgumentParser(description='Extracts the vcf files after vcf_generator.py')
     parser.add_argument('-d', '--database', help='Specified Seanome Database', required = True)

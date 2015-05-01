@@ -7,12 +7,16 @@ function buildAlignSelector(data, jid, prefix, baseurl){
 
     $("#tbldat").html('<table cellpadding="0" cellspacing="0" border="0" class="display" id="tabledat"></table>' );
     
+    data.forEach(function(d){
+	d[2] =((d[2] == 1)?"Yes":"No");
+    });
+    
     $("#tabledat").dataTable( { "order": [[2,'desc']], "pageLength": 5, "lengthChange": false, "data" : data,
 				"columns":[{"title": "file id"},{"title": "File name"},{"title": "Has SNPs?"}],
 				"columnDefs": [ { "targets": [0], "visible": false, "searchable": false}],
 				"fnRowCallback": function( nRow, aData, iDisplayIndex, iDisplayIndexFull ) {
 				    $('td:eq(0)', nRow).html(prefix + "_" + aData[1]);
-				    $('td:eq(1)', nRow).html( ((aData[2] == 1)?"Yes":"No"));
+				    //$('td:eq(1)', nRow).html( ((aData[2] == 1)?"Yes":"No"));
 				}
 			      }
 			    );
