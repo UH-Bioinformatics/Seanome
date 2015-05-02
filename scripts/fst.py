@@ -78,10 +78,10 @@ def computeFST(popLst):
 def processVCF(fname, stream, con):
     vcffile = vcf.Reader(fsock = stream)
     retdat = []
-    samplemap = [ (i, e,) for e, i in enumerate(vcffile.samples)]
+    samplemap = dict([ (i, e,) for e, i in enumerate(vcffile.samples)])
     samples = list(vcffile.samples)
-    for i in  con.execute("""SELECT sampleid, species FROM groups AS A JOIN files AS B ON (B.id = A.fileID) WHERE B.name = ?;""", (fname,)):
-        samples[ samplesmap[i[0]] ] = (samples[ samplesmap[i[0]] ], i[1],)
+    for i in  con.execute("""SELECT sampleid, species, A.id FROM groups AS A JOIN files AS B ON (B.id = A.fileID) WHERE B.name = ?;""", (fname,)):
+        samples[ samplemap[i[0]] ] = (samples[ samplemap[i[0]] ], i[1], i[2])
     
     
     for row in vcffile:
@@ -151,7 +151,10 @@ def main():
                 result = computeFST([pops[x], pops[y]])
                 if not math.isnan(result):
                     fsts.append(result)
-                    con.execute("""INSERT INTO fst(fileID, groupA, groupB, pos, value) VALUES(?,?,?,?,?)""", (fid, idLst[x], idLst[y], info[2], result,) )
+                    print str(fid)
+                    print idLst[x]
+                    print idLst[y]
+                    con.execute("""INSERT INTO fst(fileID, groupA, groupB, pos, value) VALUES(?,?,?,?,?)""", (str(fid), idLst[x][2], idLst[y][2], info[2], result,) )
     con.commit()
     con.close()
     if fsts:
