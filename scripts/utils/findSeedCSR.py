@@ -7,7 +7,7 @@ import os
 import subprocess 
 import sys
 
-USRCH= """usearch -usearch_local %(input)s -db %(database)s -id 0.80 -strand both -userfields query+target+id+alnlen+bits+qstrand+tstrand+qlo+qhi+tlo+thi+qrow+trow -userout %(output)s -threads %(threads)i -evalue 1e-5 --maxaccepts 0 --maxrejects 0 %(tail)s"""
+USRCH = """usearch -usearch_local %(input)s -db %(database)s -id 0.80 -strand both -userfields query+target+id+alnlen+bits+qstrand+tstrand+qlo+qhi+tlo+thi+qrow+trow -userout %(output)s -threads %(threads)i -evalue 1e-5 --maxaccepts 0 --maxrejects 0 %(tail)s"""
 
 
 def updateSearchOutput(args, fastaOne, fastaTwo, searchdata):
@@ -59,7 +59,7 @@ def find_seed_csr(args, con):
     inFile = updateSearchOutput( args,args.input1, args.input2, find_shared_regions(args)) 
 
     filemap = dict()
-    outFileNum=0
+    outFileNum = 0
     c = con.cursor()
     for line in inFile.splitlines():
         data = line.rstrip().split()

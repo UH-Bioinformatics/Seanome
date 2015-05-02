@@ -21,9 +21,7 @@ def chunks(l, n):
         yield l[i:i+n]
 
 
-
 def concatAlignment(con, specnumber, outfile):
-    #tally = [ row[0] for row in con.execute("""SELECT A.fileID FROM (SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID ) AS A WHERE size = ? ;""", (specnumber,) ) ]
     tally = [ row[0] for row in con.execute("""SELECT fileID, count(*) as 'size' FROM groups GROUP BY fileID HAVING size = ?;""", (specnumber,) ) ]
     
     #TODO: Need a clean way to gather what species identifiers exist.
@@ -36,8 +34,6 @@ def concatAlignment(con, specnumber, outfile):
             idents = [ s.split("_")[0] for s in r[0].split("\t") ]
             species.update( idents )
             dat.append( [ (i, s,)  for i, s in itertools.izip(idents, r[1].split("\t") ) ] )
-            #species.update( ( s.split("_")[0] for s in r[0].split("\t") ) )
-            #dat.append( [ (i.split("_")[0], s,)  for i, s in itertools.izip(r[0].split("\t") , r[1].split("\t") ) ] )
     species = list(species)
 
     for d in dat:
@@ -56,7 +52,6 @@ def concatAlignment(con, specnumber, outfile):
             print >> o, ">%s\n%s"%(k, s)
             seqs.append(SeqRecord(Seq(s), id = k) )
     os.system("""seqret  -sequence %s.fasta -sformat1 fasta -outseq %s.msa -osformat2 clustal"""%(outfile, outfile) )
-    #SeqIO.write(seqs, "%s.msa"%(outfile), "clustal")
 
 
 if __name__ == "__main__":

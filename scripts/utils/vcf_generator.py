@@ -7,6 +7,7 @@ import cStringIO as StringIO
 from threadpool import ProducerConsumer
 from utils import removeFiles, CONSENSUS_NAME
 
+
 def producer(info):
     fileidx = str(info[0])
 
@@ -37,8 +38,14 @@ def producer(info):
                              shell=(sys.platform!="win32"),
                              close_fds = True)
     dat, err = child.communicate()
+    hdr = []
+    for l in StringIO.StringIO(dat):        
+        if l[0] == '#' and l[1] != '#':
+            hdr = [ (k, v) for k, v in  zip(info[3].split("\t"), l.split()[9:], )]
+            break
+    
     removeFiles([inputdata, "%s.fai"%(inputdata)])
-    return fileidx, dat
+    return fileidx, dat, hdr
 
 
 def consumer(con, returndata):
@@ -47,9 +54,13 @@ def consumer(con, returndata):
         if not r:
             continue
         fileid = int(r[0])
+        grpmap = r[2]
         curs.execute("""INSERT INTO trimmed_vcf(fileID, vcf) VALUES(?, ?)""", (fileid, r[1], ) )
+        
+        if grpmap:
+            for k, v in grpmap:
+                curs.execute("""UPDATE groups set sampleid = ? WHERE fileID = ? AND groupid = ?;""", (v, fileid, k,) )
     con.commit()
-
 
 
 def generateVCFfiles(args, con):

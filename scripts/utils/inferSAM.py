@@ -196,6 +196,7 @@ class SAM_BUILDER():
 
 
     def processSingleRef(self, samfile, name, refStart, refEnd, refSeq, isReversed, combinedOut, header, readgroupID):
+        # +1 to refEnd, since it seems without it, in some rare cases, we lose the last base that makes up the consensus
         myReads = samfile.fetch(name, refStart, refEnd + 1)
         coverage = 0
         for read in (q for q in myReads if not q.is_unmapped):
@@ -240,7 +241,7 @@ class SAM_BUILDER():
             # print readCigar
             # print refString
             # print readString
-                # inspecting columns and inserting gaps or deleting Inserts from read as necessary
+            # inspecting columns and inserting gaps or deleting Inserts from read as necessary
             posRef = 0
             posRead = 0
             posCigar = 0
@@ -274,7 +275,6 @@ class SAM_BUILDER():
                 elif readCigar[posCigar] == "I": # we know ref has a non-gap
                     posRead += 1
                     posCigar += 1
-                    #print "I encountered"
                 elif readCigar[posCigar] == "D":
                     tempString += "-"
                     newCigarString += readCigar[posCigar]

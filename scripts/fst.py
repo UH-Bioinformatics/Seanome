@@ -31,10 +31,9 @@ def makeHistogram(vals, workdir, prefix = ""):
         plt.savefig(os.path.join(workdir, "%s_fst_histogram.png"%(prefix)), bbox_inches='tight')
 
 
-# TODO: Ask Mahdi how this can handle more than 2 populations at a time... It was originally coded to compare 2 populations only
 def computeFST(popLst):
     """
-    [ [pop1 {sample1 Q:#}, {sampleN Q:#} ] , [pop2 {sample1 Q:#}, {sampleN Q:#} ] ]
+    [ pop1: [ {sample1 Q:#}, {sampleN Q:#} ] , pop2: [ {sample1 Q:#}, {sampleN Q:#} ] ]
     """
     Allele = []
     numReads = []
@@ -76,11 +75,16 @@ def computeFST(popLst):
     return 0
 
 
-def processVCF(fname, stream):
+def processVCF(fname, stream, con):
     vcffile = vcf.Reader(fsock = stream)
     retdat = []
+    samplemap = [ (i, e,) for e, i in enumerate(vcffile.samples)]
+    samples = list(vcffile.samples)
+    for i in  con.execute("""SELECT sampleid, species FROM groups AS A JOIN files AS B ON (B.id = A.fileID) WHERE B.name = ?;""", (fname,)):
+        samples[ samplesmap[i[0]] ] = (samples[ samplesmap[i[0]] ], i[1],)
+    
+    
     for row in vcffile:
-
         dat = [fname, str(row.CHROM), str(row.POS), str(row.REF), ":".join([str(q) for q in row.ALT]), ":".join(["1"]*len(row.samples))]
         process = True
 
@@ -95,32 +99,37 @@ def processVCF(fname, stream):
                 ref = str(data.RD)
                 alt = str(data.AD)
             #total = data.SDP
-            dat.append("%s:%s"%(ref,alt))
+            dat.append("%s:%s"%(ref, alt))
         if process:
             retdat.append("\t".join(dat))
-    return retdat
+    return retdat, samples
 
 
 def main():
     parser = argparse.ArgumentParser(description='Extracts the vcf files after vcf_generator.py')
-    parser.add_argument('-d', '--database', help='Specified Seanome Database', required = True)
-    parser.add_argument('-w', '--work', help='Work direcory', required = True)
-    parser.add_argument('-p', '--prefix', help='output prefix', required = False, default = "")
+    parser.add_argument('-d', '--database', help = 'Specified Seanome Database', required = True)
+    parser.add_argument('-w', '--work', help = 'Work direcory', required = True)
+    parser.add_argument('-p', '--prefix', help = 'output prefix', required = False, default = "")
     args = parser.parse_args()
     
-    con = sqlite3.connect(args.database, check_same_thread=False)
+    con = sqlite3.connect(args.database, check_same_thread = False)
     cur = con.cursor()
-    cur.execute(""" SELECT B.name, A.vcf FROM trimmed_vcf AS A JOIN files AS B ON (A.fileID = B.id); """)
+    cur.execute(""" SELECT B.name, A.vcf, B.id FROM trimmed_vcf AS A JOIN files AS B ON (A.fileID = B.id); """)
+
     alldat = []
+    sampleMap = []
+    fileids = []
     for dat in cur:
         if not dat:
             continue
-        alldat.extend(processVCF(dat[0], StringIO.StringIO(dat[1])))
-    con.commit()
-    con.close()
+        ret, mapping = processVCF(dat[0], StringIO.StringIO(dat[1]), con)
+        alldat.extend(ret)
+        sampleMap.append(mapping)
+        fileids.append(dat[2])
 
     fsts = []
-    for l in alldat:
+    fstsprint = []
+    for l, idLst, fid in zip(alldat, sampleMap, fileids):
         l = l.strip().split("\t")
         info = l[:6]
         #info[5] # contains a colon delimited string that determins how many in the vals section belong to a given population
@@ -136,22 +145,25 @@ def main():
                 parts = vals[idx]
                 idx += 1
                 pops.append([{ref : int(parts[0]), alts : int(parts[1])}] )
-        #print pops
+
         for x in xrange(len(pops)):
             for y in xrange(x+1, len(pops)):
                 result = computeFST([pops[x], pops[y]])
-                #print result
                 if not math.isnan(result):
                     fsts.append(result)
+                    con.execute("""INSERT INTO fst(fileID, groupA, groupB, pos, value) VALUES(?,?,?,?,?)""", (fid, idLst[x], idLst[y], info[2], result,) )
+    con.commit()
+    con.close()
     if fsts:
         makeHistogram(fsts, args.work, prefix = args.prefix)    
     else:
         print >> sys.stderr , "No data to generate histogram from"
 
+
 if __name__ == "__main__":
-    try:
-        main()
-    except:
-        print >> sys.stderr, "An error occurred while trying to create the fst histogram"
+    #try:
+    main()
+    #except:
+    #    print >> sys.stderr, "An error occurred while trying to create the fst histogram"
     shutil.rmtree(os.environ['MPLCONFIGDIR'])
 #        print "%s\t%s\t%s\t%s\t%s"%(info[0], info[1], info[2], str(computeFst(pops)), str(computeFST(pops)) )

@@ -11,8 +11,6 @@ def removeFiles(flist):
             pass
 
 
-
-
 #https://github.com/lh3/readfq
 def readfq(fp): # this is a generator function
     last = None # this is a buffer keeping the last unprocessed line

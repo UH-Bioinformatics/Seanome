@@ -18,17 +18,10 @@ def getLines(infile, qcov):
         v.sort(key = lambda x : int(x[4]) , reverse = True )
     return lines
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--id',  required = True, help = "bad ids output")
-    parser.add_argument('-f', '--fasta', required = True, help = "masked contigs that make up the targets in the badids file")
-    parser.add_argument('-c', '--coverage', type = float, default = 75, help = "Target Coverage threshold between drop and N mask (default 75) [0-100]" )
-    parser.add_argument('-q', '--qcoverage', type = float, default = 75, help = "Query Coverage threshold.  Ignore hits that are below this threshold. (default 75) [0-100]" )
-    parser.add_argument('-o', '--output', required = True, help = "output fasta file")
-    args = parser.parse_args()
-    
+
+def mask(args):
     lines = getLines(args.id, args.qcoverage)
-    
+   
     with open(args.output, "w") as o:
         for entry in SeqIO.parse(args.fasta, "fasta"):
             if entry.id not in lines:
@@ -53,3 +46,14 @@ if __name__ == "__main__":
                         continue
                     #print seq
                     SeqIO.write([entry], o, "fasta")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--id',  required = True, help = "bad ids output")
+    parser.add_argument('-f', '--fasta', required = True, help = "masked contigs that make up the targets in the badids file")
+    parser.add_argument('-c', '--coverage', type = float, default = 75, help = "Target Coverage threshold between drop and N mask (default 75) [0-100]" )
+    parser.add_argument('-q', '--qcoverage', type = float, default = 75, help = "Query Coverage threshold.  Ignore hits that are below this threshold. (default 75) [0-100]" )
+    parser.add_argument('-o', '--output', required = True, help = "output fasta file")
+    args = parser.parse_args()
+    

@@ -58,7 +58,6 @@ def producer(info):
     vcfohndl.close()
 
     removeFiles([bamfile, bamidxfile])
-
     return info[0], modvcf, jsonstr
     
 
@@ -91,7 +90,7 @@ def computeData(inputvcf, outputvcf, samf, shift):
                 found_alts.add(base.upper())
                 counts[sample].update(base.upper())
         newALTS = list(found_alts.difference([ref]))
-        data.append( dict(pos=vcff[p.pos].POS, counts= dict(counts), ref = ref, alts = newALTS) )
+        data.append( dict(pos = vcff[p.pos].POS, counts = dict(counts), ref = ref, alts = newALTS) )
 
         if outputvcf:
             vcff[p.pos].ALT = [vcf.model._Substitution(j) for j in newALTS]
@@ -101,7 +100,7 @@ def computeData(inputvcf, outputvcf, samf, shift):
 
 def updateVCFfiles(args, con):
     cur = con.cursor()
-    cur.execute("""SELECT A.fileID, A.vcf, B.bam, B.bamidx FROM trimmed_vcf as A JOIN trimmed_inferSAM AS B ON (A.fileID = B.fileID); """)
+    cur.execute(""" SELECT A.fileID, A.vcf, B.bam, B.bamidx FROM trimmed_vcf AS A JOIN trimmed_inferSAM AS B ON (A.fileID = B.fileID); """)
     rows = ( (r[0], r[1], bytearray(r[2]), bytearray(r[3]), ) for r in cur )
 
     worker = ProducerConsumer(args, args.threads, producer, consumer)

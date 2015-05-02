@@ -272,7 +272,7 @@ def orderingFunction(oo, passalongs, dummyorder = False):
    Initially generate sometype of similarity measure between the different samples.  With this information,
    we need to get it so that we can work with it dynamically in the bash script.  Initally we populate
    two assosiative arrays with information for each sample.  We then iterate line by line, over the output
-   from the python script.  this provides us with a processing order.  We use the associative arrays to get us the correct
+   from the python script.  This provides us with a processing order.  We use the associative arrays to get us the correct
    input files to use as we move through the samples, in the defined ordering.
    """
 
@@ -362,6 +362,7 @@ def generateMulti(args, largesingle = False):
       print >> o, "bash %s"%(SAMPLE_RUNNER%(3))
       print >> o, "cd ${OLDDIR}"
    sampleRunner3_Multi(args, parameters, threads, passalongs, largesingle)
+
 		
 
 def sampleRunner3_Single(args, parameters, threads, comboname):
@@ -394,6 +395,7 @@ def generateSingle(args):
       print >> o, "cd ${OLDDIR}"
    comboname = singleMergedInput(args, threads, passalongs)
    sampleRunner3_Single(args, parameters, threads, comboname)
+
 
 
 if __name__ == "__main__":

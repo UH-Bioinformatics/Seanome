@@ -3,6 +3,7 @@ from multiprocessing import Pool
 
 class ProducerConsumer(object):
     def __init__(self, args, threads, producer, consumer):
+        # we subtract 1 thread, to account for the consumer thread. aka the main thread
         if threads > 1:
             self.threads= threads - 1
         else:

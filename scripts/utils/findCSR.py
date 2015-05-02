@@ -13,10 +13,11 @@ from threadpool import ProducerConsumer
 from Bio.Align.Applications import MuscleCommandline
 
 
-#HMM_CMD = """nhmmer --cpu 1 --qformat fasta - %(genome)s """
 HMM_CMD = """nhmmer --cpu 1 --dna --qformat fasta - %(genome)s """
 hmmer_hit_re = re.compile(r'score\s*bias\s*Evalue\s*hmmfrom\s*hmm\s*to\s*alifrom')
 hmmer_query_length = re.compile("Query:\s*ali\s*\[M=(\d+)")
+
+
 def remove_readonly(func, path, excinfo):
     os.chmod(path, stat.S_IWRITE)
     func(path)
@@ -31,8 +32,6 @@ def find_csr(args, con):
    os.mkdir(nhmmer_dir)
    worker = ProducerConsumer(args, args.threads, find_csrProducer, find_csrConsumer)
    worker.run(con, ( (c, args.genome, genomeseq, args.min_csr_len, args.min_csr_sim) for c in cur) )
-   # DLS cleanup after mkdtemp.  It is the Users responsibility!  
-   #shutil.rmtree(tmpDir, onerror = remove_readonly)
    try:
        shutil.rmtree(tmpDir, onerror = remove_readonly)
    except:
@@ -85,8 +84,8 @@ def find_csrProducer(payload):
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
-                                   universal_newlines=True,
-                                   shell=(sys.platform!="win32"),
+                                   universal_newlines = True,
+                                   shell = (sys.platform!="win32"),
                                    close_fds = True)
          mucout, mucerr = childM.communicate(seqs)
          alnA = AlignIO.read(StringIO.StringIO(mucout), "fasta")
@@ -114,5 +113,3 @@ def getSubSeqFromFasta(seq, start, end, reverse=False):
    else:
       seqo = seq[start:end].seq
    return ident, seqo
-
-

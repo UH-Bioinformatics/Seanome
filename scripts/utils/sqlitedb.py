@@ -23,6 +23,7 @@ def commontables(dbname):
                    species TEXT, coverage INTEGER, trimmed_coverage INTEGER DEFAULT 0, FOREIGN KEY(fileID) REFERENCES files(id) );""")
     con.execute("""CREATE INDEX IF NOT EXISTS groups_fileid_idx ON groups(fileID ASC);""")
     con.execute("""CREATE INDEX IF NOT EXISTS groups_species_idx ON groups(species ASC);""")
+    con.execute("""CREATE INDEX IF NOT EXISTS groups_group_idx ON groups(groupid ASC);""")
     con.execute("""CREATE INDEX IF NOT EXISTS groups_sampleid_idx ON groups(sampleid ASC);""")
 
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_consensus(id INTEGER PRIMARY KEY, fileID INTEGER, sequence TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
@@ -37,7 +38,7 @@ def commontables(dbname):
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_modvcf(id INTEGER PRIMARY KEY, fileID INTEGER, vcf TEXT, json TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
     con.execute("""CREATE INDEX IF NOT EXISTS trimmed_modvcf_fileid_idx ON trimmed_modvcf(fileID ASC);""")
 
-    con.execute("""CREATE TABLE IF NOT EXISTS fst(id INTEGER PRIMARY KEY, fileID INTEGER, groupA INTEGER, groupB INEGER, pos INTEGER, value REAL );""")
+    con.execute("""CREATE TABLE IF NOT EXISTS fst(id INTEGER PRIMARY KEY, fileID INTEGER, groupA INTEGER, groupB INTEGER, pos INTEGER, value REAL );""")
     con.execute("""CREATE INDEX IF NOT EXISTS fst_name_idx ON fst(fileID ASC);""")
     con.execute("""CREATE INDEX IF NOT EXISTS fst_grpA_idx ON fst(groupA ASC);""")
     con.execute("""CREATE INDEX IF NOT EXISTS fst_grpB_idx ON fst(groupB ASC);""")

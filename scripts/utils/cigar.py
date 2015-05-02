@@ -3,6 +3,8 @@ import re
 
 cigar_re = re.compile(r'([0-9]*)([M=XID])')
 FINDALL_CMP=re.compile(r'([0-9]*)([MID=])')
+CIGREMAP = dict(M = 'M', D = 'I', I = 'D')
+
 
 def expandCigar( cigar):
     cigstr = ""
@@ -19,7 +21,6 @@ def compressCigar(cigar):
     We build the cigar as a string of I,M, and D.  We need to do a RLE on this 
     to compact it. 
     """
-
     cigar = cigar.rstrip("D")
     c = None
     cnt = 0
@@ -32,14 +33,13 @@ def compressCigar(cigar):
             c = b
         else:
             cnt += 1
-    if c!= None:
+    if c != None:
         ciglst.append("%s%s"%(cnt, c))
     return "".join(ciglst)
 
 
-
 # I='D' or I='N'        
-CIGREMAP = dict(M='M', D='I', I='D')
+
 def interpretAln(parts):
     index = 0
     rm = 0
@@ -63,7 +63,7 @@ def cleanupCigar(pos, cig, seqlen):
         if parts[0][1] == '=':
             return "%sM"%(seqlen)
         else:
-            return cig, pos, 0,0 
+            return cig, pos, 0, 0 
     # fix the RLE so that everything has both elements
     parts = [ (p[0] if p[0] else '1', p[1],) for p in parts]
     f_idx, rmfront, shiftright = interpretAln(parts)

@@ -114,8 +114,7 @@ def singleProducer(args):
         readgroups[grpident][-1] += 1 
         srec.append(makeSAMrecSingle(0, d[3], d[1], d[2], conseq[0], True,  readgroups[grpident][0] ))
     fname = "outFile_%s_%s"%(idx, len(conseq[1]) )
-    tmp = str(conseq[1])   
-    #rgrps, idtomap = generateReadGroups(grps.iterkeys())
+    #tmp = str(conseq[1])   
     samdat ="%s\n%s\n%s\n%s\n"%(SAMHDR1, SAMHDR2%dict(rname = CONSENSUS_NAME, rlen = len(conseq[1]) ), "\n".join(grpHdrs.itervalues()), "\n".join(srec) )
     bamname, bamidxname = samToBam(samdat, fname, False)
     consensus = updateConsensus(bamname)
@@ -139,7 +138,6 @@ def singleConsumer(con, returndata):
         row = cur.fetchone()
         fileID = row[0]
         cur.executemany("""INSERT INTO groups(fileID, groupid, species, coverage, trimmed_coverage) VALUES(?,?,?,?,?);""", ( (fileID, g[0], g[1], g[2], g[2]) for g in  rgrps)  )      
-        #cur.executemany("""INSERT INTO groups(fileID, groupid) VALUES(?,?);""", ( (fileID, g['ID'],) for g in  rgrps)  )      
         cur.execute("""INSERT INTO trimmed_inferSAM(fileID, sam, bam, bamidx) VALUES(?,?,?,?);""", (fileID, samdat, sqlite3.Binary(bamdat), sqlite3.Binary(bamidx),) )
         cur.execute("""INSERT INTO trimmed_consensus(fileID, sequence) VALUES(?, ?)""", (fileID, consensus,) )
     con.commit()
@@ -158,8 +156,6 @@ def processSingle(args):
     parser.parse(seqindex, cleanids, cutoff, maxcutoff)
     clusterid = parser.getClusters().keys()
     clusterid.sort()
-    #for idx, r in enumerate(clusterid):
-        #singleProducer((conindex[r], parser.getClusters(r), idx, r,))        
     worker = ProducerConsumer(args, args.threads, singleProducer, singleConsumer)
     worker.run( con, ( (conindex[r], parser.getClusters(r), idx, r,)  for idx, r in enumerate(clusterid) ) )
     con.commit()
