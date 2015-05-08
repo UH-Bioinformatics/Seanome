@@ -1,4 +1,4 @@
-mport os
+import os
 import copy
 import itertools
 import pysam
