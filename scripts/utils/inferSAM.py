@@ -335,7 +335,10 @@ class SAM_BUILDER():
         for pileupcolumn in samfile.pileup(CONSENSUS_NAME):
             bases =[]
             for pup in pileupcolumn.pileups:
-                bases.append(pup.alignment.seq[pup.qpos])
+                try:
+                    bases.append(pup.alignment.seq[pup.qpos])
+                except:
+                    bases.append(pup.alignment.seq[pup.query_position])
             colBases.append(bases)
         newSeq=""
         for pos in colBases:
