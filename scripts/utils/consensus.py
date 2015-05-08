@@ -13,8 +13,8 @@ def updateConsensus(bamfile):
             except:
                 if pup.query_position:
                     bases.append(pup.alignment.seq[pup.query_position])
-                else:
-                    bases.append("-")
+                #else:
+                #    bases.append("-")
         colBases.append(bases)
     newSeq=""
     for pos in colBases:

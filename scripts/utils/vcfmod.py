@@ -87,7 +87,7 @@ def computeData(inputvcf, outputvcf, samf, shift):
             try:
                 base = pread.alignment.seq[pread.qpos]
             except:
-                if pup.query_position:
+                if pread.query_position:
                     base = pread.alignment.seq[pread.query_position]
                 else:
                     continue
