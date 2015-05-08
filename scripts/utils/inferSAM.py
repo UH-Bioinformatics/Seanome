@@ -1,4 +1,4 @@
-import os
+mport os
 import copy
 import itertools
 import pysam
@@ -338,7 +338,8 @@ class SAM_BUILDER():
                 try:
                     bases.append(pup.alignment.seq[pup.qpos])
                 except:
-                    bases.append(pup.alignment.seq[pup.query_position])
+                    if pup.query_position:
+                        bases.append(pup.alignment.seq[pup.query_position])
             colBases.append(bases)
         newSeq=""
         for pos in colBases:

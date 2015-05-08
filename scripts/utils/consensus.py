@@ -8,7 +8,11 @@ def updateConsensus(bamfile):
     for pileupcolumn in samfile.pileup():
         bases = []
         for pup in pileupcolumn.pileups:
-            bases.append(pup.alignment.seq[pup.qpos])
+            try:
+                bases.append(pup.alignment.seq[pup.qpos])
+            except:
+                if pup.query_position:
+                    bases.append(pup.alignment.seq[pup.query_position])
         colBases.append(bases)
     newSeq=""
     for pos in colBases:
