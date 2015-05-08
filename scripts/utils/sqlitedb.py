@@ -38,7 +38,7 @@ def commontables(dbname):
     con.execute("""CREATE TABLE IF NOT EXISTS trimmed_modvcf(id INTEGER PRIMARY KEY, fileID INTEGER, vcf TEXT, json TEXT, FOREIGN KEY(fileID) REFERENCES files(id));""")
     con.execute("""CREATE INDEX IF NOT EXISTS trimmed_modvcf_fileid_idx ON trimmed_modvcf(fileID ASC);""")
 
-    con.execute("""CREATE TABLE IF NOT EXISTS fst(id INTEGER PRIMARY KEY, fileID INTEGER, groupA INTEGER, groupB INTEGER, pos INTEGER, value REAL, FOREIGN KEY(fileID) REFERENCES files(id)), FOREIGN KEY(groupA) REFERENCES groups(id)), FOREIGN KEY(groupB) REFERENCES groups(id)));""")
+    con.execute("""CREATE TABLE IF NOT EXISTS fst(id INTEGER PRIMARY KEY, fileID INTEGER, groupA INTEGER, groupB INTEGER, pos INTEGER, value REAL, FOREIGN KEY(fileID) REFERENCES files(id), FOREIGN KEY(groupA) REFERENCES groups(id), FOREIGN KEY(groupB) REFERENCES groups(id) );""")
     con.execute("""CREATE INDEX IF NOT EXISTS fst_name_idx ON fst(fileID ASC);""")
     con.execute("""CREATE INDEX IF NOT EXISTS fst_grpA_idx ON fst(groupA ASC);""")
     con.execute("""CREATE INDEX IF NOT EXISTS fst_grpB_idx ON fst(groupB ASC);""")
