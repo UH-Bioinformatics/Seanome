@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2.7
 
 
 #arr=("l24" "plob1" "plob2" "plob3" "pcom1" "pcom2" "pcom3");for i in ${arr[@]}; do echo ${i}; findOrder.sh ${i}_pseudo_ref_parts.fasta ${i} 2 21; done

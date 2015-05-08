@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2.7
 import math
 import argparse
 from collections import defaultdict

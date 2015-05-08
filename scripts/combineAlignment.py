@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2.7
 
 from Bio import SeqIO
 from Bio.Seq import Seq

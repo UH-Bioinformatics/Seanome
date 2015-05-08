@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2.7
 
 # TODO: Clean the directories in alignment that are not optimal
 # capture control+c and stop the execution of the threads?
