@@ -83,13 +83,14 @@ def computeData(inputvcf, outputvcf, samf, shift):
         for pread in p.pileups:
             if pread.is_del:
                 continue
-                try:
-                    base = pread.alignment.seq[pread.qpos]
-                except:
-                    if pup.query_position:
-                        base = pread.alignment.seq[pread.query_position]
-                    else:
-                        continue
+            base = "N"
+            try:
+                base = pread.alignment.seq[pread.qpos]
+            except:
+                if pup.query_position:
+                    base = pread.alignment.seq[pread.query_position]
+                else:
+                    continue
             # Do we discard gaps and N?
             if base.upper() != 'N' or base != '-':
                 sample = pread.alignment.qname.split("_")[-1]

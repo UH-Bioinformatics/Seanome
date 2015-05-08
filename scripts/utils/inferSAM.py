@@ -340,6 +340,8 @@ class SAM_BUILDER():
                 except:
                     if pup.query_position:
                         bases.append(pup.alignment.seq[pup.query_position])
+                    else:
+                        bases.apped("-")
             colBases.append(bases)
         newSeq=""
         for pos in colBases:
