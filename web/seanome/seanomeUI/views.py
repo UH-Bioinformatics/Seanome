@@ -274,6 +274,7 @@ def ajaxGetSNPs(request, jid, ident):
 
 
 def ajaxGetMSA(request, jid, ident, clean):
+    # TODO: the sam_to_msafasta.py should be run as part of the user job
     jobj = job.objects.get(pk = jid)
     toplvl = os.path.join(settings.JOBDIR, jid)
     dbLoc = os.path.join(toplvl,  settings.SUFFIX_DB_LOCATION)
@@ -289,36 +290,10 @@ def ajaxGetMSA(request, jid, ident, clean):
                              stdout=subprocess.PIPE,
                              shell=(sys.platform!="win32"),
                              close_fds = True)
-    fastadata= child.communicate()[0]
-
+    fastadata = child.communicate()[0]
     return HttpResponse(fastadata, content_type = "application/fasta")    
 
 
-# def ajaxGetMSA(request, jid, ident, clean):
-#     jobj = job.objects.get(pk = jid)
-#     toplvl = os.path.join(settings.JOBDIR, jid)
-#     con = getsqliteDB(toplvl)
-#     if jobj.single == False:
-#         qry =  QUERY_TRIMMED_CSR_AS_SEQS
-#         cons = "trimmed_consensus"
-#         if clean == '0':
-#             qry = QUERY_CSR_AS_SEQS
-#             cons = "consensus"
-#         data = con.execute("""SELECT A.fileID, B.sequence, A.IDs, A.SEQS FROM ( %(csr_as_seqeuences)s ) AS A JOIN %(contbl)s AS B ON (A.fileID = B.fileID) where A.fileID = ?;"""%dict(csr_as_seqeuences = qry, contbl = cons), (ident,) )
-#         rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), "\n".join([">%s\n%s"%(i,s,)  for i, s in itertools.izip(r[2].split("\t") , r[3].split("\t") ) ] ), ) for r in data ]
-#         fastadata = "%s%s"%(rows[0][1], rows[0][2])
-#     else:
-#         data = con.execute("""SELECT B.fileID, B.sequence FROM trimmed_consensus AS B WHERE B.fileID = ?;""", (ident,) )
-#         rows = [  (r[0], ">%(seqID)s\n%(seq)s\n"%dict(seqID = "Consensus", seq = r[1]), ) for r in data ]
-#         fastadata = "%s"%(rows[0][1])        
-#     return HttpResponse(fastadata, content_type = "application/fasta")    
-
-
-
-#def lastmod(request, jid, count, template):
-#    return datetime.datetime(year = 2000, month = 1, day = 1)
-
-#@condition(last_modified_func=lastmod)
 def viewAlignments(request, jid, count, template):
     jobj = job.objects.get(pk = jid)
     if jobj.stage != STAGES_REVERSE['done-s2']:
@@ -475,9 +450,60 @@ def histogram(request, jid):
     return HttpResponse(imgdat, content_type = "image/png")
 
 
+def downloadAlleleFreq(request, jid, count):
+    jobj = job.objects.get(pk = jid)  
+    count = int(count)
+    toplvl = os.path.join(settings.JOBDIR, jid)
+    con = getsqliteDB(toplvl)
+    fids = tuple([str(f[1]) for f in getSpecificFilesByMemberCount(con, count)]) # fname and fid
+    zstream = ZipFile(fileobj = None, compression = ZIP_DEFLATED)
+
+    for cfids in chunks(fids, 100):
+        dataA = con.execute("""SELECT  B.name, D.json FROM files as B JOIN trimmed_modvcf AS D ON (D.fileID = B.id) WHERE B.id IN (""" + nparams(len(cfids)) + """);""", cfids )
+        dataB = con.execute("""SELECT  B.name, D.vcf FROM files as B JOIN trimmed_vcf AS D ON (D.fileID = B.id) WHERE B.id IN (""" + nparams(len(cfids)) + """);""", cfids )
+        fdat = []
+        for f in dataA:
+            dat = json.loads(f[1])
+            for row in dat:
+                results = []    
+                for sample, cnts in row['counts'].iteritems():
+                    results.append(sample)
+                    tot = float(sum(cnts.itervalues()))          
+                    for k, v in cnts.iteritems():
+                        results.append( "%s\t%s"%(k, float(v) / tot) )
+                fdat.append("%s\t%s\t%s\t%s"%(row['pos'], row['ref'], ",".join(row['alts']), "\t".join(results) ) )                
+            zstream.write(iterable = ["\n".join(fdat)], arcname = os.path.join("vcf_allele_freqs", "%s.tsv"%(f[0]) ) )
+        # TODO:  Need to map sample# to species id -- In the future the mapping may exist in a table,.. check group table..
+        for f in dataB:
+            fdat = []
+            for l in str(f[1]).split("\n"):
+                
+                if (l and l[0] == '#') or not l:
+                    continue
+
+                l = l.split("\t")
+                pos = l[1]
+                ref = l[3]
+                alt = l[4]
+                d = [ e for e, i in enumerate(l[8].split(":")) if i =='FREQ'][0]
+                row = [pos, ref, alt]
+                for idx, dat in enumerate(l[9:]):
+                    dat = dat.split(":")
+                    if dat[0] == './.':
+                        row.append("Sample%s\t%s\t%s"%(idx+1, 0.0, 0.0))
+                    else:
+                        dat = float(dat[d][:-1]) / 100.0
+                        row.append("Sample%s\t%s\t%s"%(idx+1, 1.0 - dat, dat ))
+                fdat.append("\t".join(row))                
+            if fdat:
+                zstream.write(iterable = ["\n".join(fdat)], arcname = os.path.join("obs_allele_freqs", "%s.tsv"%(f[0]) ) )
+        #        zstream.write(iterable = [fdat], arcname = os.path.join("post_trim_alignment", "%s.fasta"%(f[0]) ) )
+        #        zstream.write(iterable = [f[-1]], arcname = os.path.join("SNPs", "%s.vcf"%(f[0])) )
+    return streamArchive(zstream, "Job_%s_filter_%s_allele_freqs.zip"%(jid, count) )
+
+
 def MSADownload(request, jid, count, tid): #msa_download
     ### TODO: DLS - figure out a nice way to not iterator the sqlite execute command before dealing with the streaming
-
     jobj = job.objects.get(pk = jid)  
     tid = int(tid)
     count = int(count)
