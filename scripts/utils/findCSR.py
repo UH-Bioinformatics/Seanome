@@ -98,7 +98,7 @@ def find_csrConsumer(con, returndat):
    for dat in returndat:
       if not dat:
          continue
-      for q in dat[1]:
+      for q in list(dat[1]):
          if q.id == dat[2]:
             cur2.execute("""INSERT INTO csr(fileID, seqID, sequence) VALUES(?, ?, ?)""", (dat[0], q.id, str(q.seq), ) )
          else:

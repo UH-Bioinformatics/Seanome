@@ -146,8 +146,8 @@ def main():
                 idx += 1
                 pops.append([{ref : int(parts[0]), alts : int(parts[1])}] )
 
-        for x in xrange(len(pops)):
-            for y in xrange(x+1, len(pops)):
+        for x in range(len(pops)):
+            for y in range(x+1, len(pops)):
                 result = computeFST([pops[x], pops[y]])
                 if not math.isnan(result):
                     fsts.append(result)
