@@ -12,24 +12,26 @@ from sqlitedb import QUERY_CSR_AS_SEQS
 
 
 def producer(info):
-    inputdata = "%s.fasta"%(str(info[0]))
-    consensus = str(info[1])
-    seqs = [">%s\n%s"%(str(i), str(s)) for i, s in zip(info[2].split("\t"), info[3].split("\t"))]
-    with open(inputdata, "w") as o:
-        print >> o, ">%(seqID)s\n%(seq)s"%dict(seqID=CONSENSUS_NAME, seq=consensus)
-        print >> o, "%s"%("\n".join(seqs))
-    cline = """trimal -in %s  -fasta -gt 0.8 -st 0.001 -cons 60 -colnumbering"""%(inputdata)
-    child = subprocess.Popen(str(cline),
+    try:
+        inputdata = "%s.fasta"%(str(info[0]))
+        consensus = str(info[1])
+        seqs = [">%s\n%s"%(str(i), str(s)) for i, s in zip(info[2].split("\t"), info[3].split("\t"))]
+        with open(inputdata, "w") as o:
+            print >> o, ">%(seqID)s\n%(seq)s"%dict(seqID=CONSENSUS_NAME, seq=consensus)
+            print >> o, "%s"%("\n".join(seqs))
+        cline = """trimal -in %s  -fasta -gt 0.8 -st 0.001 -cons 60 -colnumbering"""%(inputdata)
+        child = subprocess.Popen(str(cline),
                              stdout=subprocess.PIPE,
                              universal_newlines = True,
                              shell=(sys.platform!="win32"))
-    sout, serr = child.communicate()
-    removeFiles([inputdata])
-    sout = filter(None, sout.splitlines()) # strip empty lines
-    fasta = "\n".join(sout[:-1])
-    log = sout[-1]
-    return fasta, log, info[0]
-
+        sout, serr = child.communicate()
+        removeFiles([inputdata])
+        sout = filter(None, sout.splitlines()) # strip empty lines
+        fasta = "\n".join(sout[:-1])
+        log = sout[-1]
+        return fasta, log, info[0]
+    except:
+        return None
 
 def consumer(con, returndata):
     curs = con.cursor()

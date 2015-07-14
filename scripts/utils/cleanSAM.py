@@ -34,7 +34,8 @@ def producer(info):
     hdr['SQ'] = [ {'LN': refs[0][1], 'SN': refs[0][0] }]
     
     total = 0
-    indices = eval("[" + info[1] + "]")
+    indices = eval("["+info[1].replace("#ColumnsMap","") + "]")
+    #indices = eval("[" + info[1] + "]")
     maxidx = max(indices) + 1
     shift = [0]*(maxidx)
     for i in xrange(len(shift)):
