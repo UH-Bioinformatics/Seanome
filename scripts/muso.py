@@ -43,53 +43,57 @@ def producer(info):
     - Build a new cigar based on the MSA alignment and the consensus that was created.
     - works on a single MSA and returns 1 consensus, with multiple cigards (1 for each sequence)
     """
-    msa = info[0]
-    dropAmbiguous = info[1]
-    tag = info[2]
-    maxhrs = info[3]
-    largesize = info[4]
-    newcigs = {}
-    cline = ""
+    try: # DLS -- 20150715 try/except added to allow us to handle cases muscle segfaults or generates no output.
+        msa = info[0]
+        dropAmbiguous = info[1]
+        tag = info[2]
+        maxhrs = info[3]
+        largesize = info[4]
+        newcigs = {}
+        cline = ""
 
-    if largesize != 0 and  (len(msa) - 1) >= largesize:
-        if maxhrs:
-            cline = MuscleCommandline(quiet = True, maxhours = maxhrs, maxiters = 2)
+        if largesize != 0 and  (len(msa) - 1) >= largesize:
+            if maxhrs:
+                cline = MuscleCommandline(quiet = True, maxhours = maxhrs, maxiters = 2)
+            else:
+                cline = MuscleCommandline(quiet = True, maxiters = 2)
         else:
-            cline = MuscleCommandline(quiet = True, maxiters = 2)
-    else:
-        if maxhrs:
-            cline = MuscleCommandline(quiet = True, maxhours = maxhrs)        
-        else:
-            cline = MuscleCommandline(quiet = True)        
+            if maxhrs:
+                cline = MuscleCommandline(quiet = True, maxhours = maxhrs)        
+            else:
+                cline = MuscleCommandline(quiet = True)        
 
-    child = subprocess.Popen(str(cline),
+        child = subprocess.Popen(str(cline),
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
                              universal_newlines=True,
                              shell=(sys.platform!="win32"))
-    tmp = StringIO.StringIO()   
-    SeqIO.write(msa[:-1], tmp, "fasta")
-    muscleout, merr = child.communicate(tmp.getvalue())
-    alns = AlignIO.read(StringIO.StringIO(muscleout), "fasta")
-    si = AlignInfo.SummaryInfo(alns)
-    cons = si.dumb_consensus(threshold = 0, ambiguous = 'N') # take whatever the most abundant base is, that isn't a . or -
-    conid =  msa[0].id.replace("*","")  + "_" + tag
+        tmp = StringIO.StringIO()   
+        SeqIO.write(msa[:-1], tmp, "fasta")
+        muscleout, merr = child.communicate(tmp.getvalue())
+        alns = AlignIO.read(StringIO.StringIO(muscleout), "fasta")
+        si = AlignInfo.SummaryInfo(alns)
+        cons = si.dumb_consensus(threshold = 0, ambiguous = 'N') # take whatever the most abundant base is, that isn't a . or -
+        conid =  msa[0].id.replace("*","")  + "_" + tag
 
-    if cons.find("GATC") == -1 and dropAmbiguous:
-        return []
-    for s in alns:
-        cigar = ""
-        for i in str(s.seq):
-            if i == "-" or i == '+':
-                cigar += 'I' 
-                #cigar += 'D' # the gap forms in the read, not the reference, therefore it should be a Deletion
-            else:
-                cigar += 'M'
-        s.id = s.id.replace("*","")
-        newcigs[s.id] = [s.id, conid, compressCigar(cigar)]
-    newCon = SeqRecord(cons, id = conid, description="")
-    return newCon, newcigs
+        if cons.find("GATC") == -1 and dropAmbiguous:
+            return []
+
+        for s in alns:
+            cigar = ""
+            for i in str(s.seq):
+                if i == "-" or i == '+':
+                    cigar += 'I' 
+                    #cigar += 'D' # the gap forms in the read, not the reference, therefore it should be a Deletion
+                else:
+                    cigar += 'M'
+            s.id = s.id.replace("*","")
+            newcigs[s.id] = [s.id, conid, compressCigar(cigar)]
+        newCon = SeqRecord(cons, id = conid, description="")
+        return newCon, newcigs
+    except:
+        return None
 
 
 def consumer(args, returndata):
@@ -109,10 +113,11 @@ def modCigars(newcigs, infile, outfile):
         for l in open(infile):
             l = l.strip().split()
             l[0] = l[0].replace("*","")
-            newcigs[l[0]].append(l[-2])
-            newcigs[l[0]].append(l[-1])
-            print >> o, "\t".join(map(str,  newcigs[l[0]]))
-            keys.remove(l[0])
+            if l[0] in newcigs: #DLS -- 20150715 Added to prevent key errors when we have errors from muscle
+                newcigs[l[0]].append(l[-2])
+                newcigs[l[0]].append(l[-1])
+                print >> o, "\t".join(map(str,  newcigs[l[0]]))
+                keys.remove(l[0])
         for k in keys:
             newcigs[k].append("+")
             newcigs[k].append("+")
