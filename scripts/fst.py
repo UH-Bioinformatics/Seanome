@@ -101,7 +101,7 @@ def processVCF(fname, stream, con):
             #total = data.SDP
             dat.append("%s:%s"%(ref, alt))
         if process:
-            retdat.append("\t".join(dat))
+            retdat.append( ("\t".join(dat), samples,))
     return retdat, samples
 
 
@@ -123,16 +123,18 @@ def main():
         if not dat:
             continue
         ret, mapping = processVCF(dat[0], StringIO.StringIO(dat[1]), con)
-        alldat.extend(ret)
-        sampleMap.append(mapping)
-        fileids.append(dat[2])
+        alldat.extend( [ (r[0], r[1], dat[2],) for r in ret])
+        #alldat.extend(ret)
+        #sampleMap.append(mapping)
+        #fileids.append(dat[2])
 
     fsts = []
     fstsprint = []
-    for l, idLst, fid in zip(alldat, sampleMap, fileids):
+    for l, idLst, fid in alldat:
+    #for l, idLst, fid in zip(alldat, sampleMap, fileids):
         l = l.strip().split("\t")
         info = l[:6]
-        #info[5] # contains a colon delimited string that determins how many in the vals section belong to a given population
+        #info[5] # contains a colon delimited string that determines how many in the vals section belong to a given population
         vals = [ map(int, q.split(":")) for q in l[6:] ]
 
         ref = info[3]
@@ -151,9 +153,9 @@ def main():
                 result = computeFST([pops[x], pops[y]])
                 if not math.isnan(result):
                     fsts.append(result)
-                    print str(fid)
-                    print idLst[x]
-                    print idLst[y]
+                    #print str(fid)
+                    #print idLst[x]
+                    #print idLst[y]
                     con.execute("""INSERT INTO fst(fileID, groupA, groupB, pos, value) VALUES(?,?,?,?,?)""", (str(fid), idLst[x][2], idLst[y][2], info[2], result,) )
     con.commit()
     con.close()
