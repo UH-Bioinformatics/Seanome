@@ -158,8 +158,13 @@ def returnBestPutativePerm(path, suffix, measure = "score"):
     #print namesList
     minValue = distMatrix[np.isnan(distMatrix) == False].min()
     #print minValue
-    order.append(namesList[np.where(distMatrix == minValue)[0][0,0]])
-    order.append(namesList[np.where(distMatrix == minValue)[1][0,0]])
+    if len(namesList) >  2:
+        order.append(namesList[np.where(distMatrix == minValue)[0][0,0]])
+        order.append(namesList[np.where(distMatrix == minValue)[1][0,0]])
+    else:
+        order.append(namesList[0])
+        order.append(namesList[1])
+        
     tempNamesHash.pop(order[0])
     tempNamesHash.pop(order[1])
 
