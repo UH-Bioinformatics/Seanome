@@ -17,8 +17,8 @@ libraries:
     - /full/path/to/IGA_reverse.fastq
 
 findcsr:
-  - minlen: 150
-  - minsim: 0.94
+  minlen: 150
+  minsim: 0.94
    
 """
 
