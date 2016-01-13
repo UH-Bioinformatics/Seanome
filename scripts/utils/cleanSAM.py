@@ -48,6 +48,11 @@ def producer(info):
         newseq = ""
         newcig = ""
         newqual = ""
+
+        # mahdi 20160112: causing the program to crash. Cause still unknown                                                                                                                                                        
+        if read.cigarstring == None:
+            break;
+			
         cigar = expandCigar(read.cigarstring)
         back = 0
         pos = read.pos
