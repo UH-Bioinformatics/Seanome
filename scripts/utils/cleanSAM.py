@@ -44,10 +44,21 @@ def producer(info):
             total += 1
     outfile = pysam.Samfile("%s.trim.sam"%(fileidx), "wh", header = hdr)
     newcoverage = defaultdict(int)
+
+    # DSL 20160113 -- Since the outfile already has the header, a None check won't work.  Use a boolean flag for now to verify we have sequences.
+    hasSeqs = False
     for read in sfile.fetch():
         newseq = ""
         newcig = ""
         newqual = ""
+
+        # mahdi: causing the program to crash. Cause still unknown
+        if read.cigarstring == None:
+            # DLS 20160113 -- instead of tossing the entire sam file out, just skip the bad sequence...
+            #break;
+            continue
+        # DLS 20160113 -- added to notify later steps the SAM file we are building does infact contain at least 1 sequence.
+        hasSeqs = True
         cigar = expandCigar(read.cigarstring)
         back = 0
         pos = read.pos
@@ -91,7 +102,10 @@ def producer(info):
     bamout = "%s.trim.bam"%(fileidx)
     samdat = open(samout).read()
     removeFiles([bamfile, bamidxfile, samout])
-
+    # DLS 20160113 -- The consumer should handle the None case correctly, by skipping the INSERT/UPDATE action.
+    #                 I am speculating an issue occurs in the samToBam when the samfile is empty.
+    if hasSeqs == False:
+        return None
     bamdat, bamidxdat = samToBam(samdat, "%s.trim"%(fileidx), buffers = True)
     return fileidx, samdat, bamdat, bamidxdat, newcoverage
 

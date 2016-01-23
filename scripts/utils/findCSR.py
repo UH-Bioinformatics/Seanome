@@ -67,11 +67,12 @@ def find_csrProducer(payload):
             seqLen = hStart - hEnd + 1
             strand="-"
 
-         if int(seqLen) > min_csr_len and float(acc) > min_csr_sim:
+         if int(seqLen) >= min_csr_len and float(acc) > min_csr_sim:
             if strand=="+":
                hitid, hitseq = getSubSeqFromFasta(genomeseq, hStart - 1, hEnd) # nhmmer alignment is 1 based 
             else:
                hitid, hitseq = getSubSeqFromFasta(genomeseq, hEnd - 1, hStart, True) # nhmmer alignment is 1 based 
+            #break
          else:
             print >> sys.stderr, "Parameters not met for alignment %s " % info[0]
             break
@@ -100,10 +101,10 @@ def find_csrConsumer(con, returndat):
       if not dat:
          continue
       for q in list(dat[1]):
-         if q.id == dat[2]:
-            cur2.execute("""INSERT INTO csr(fileID, seqID, sequence) VALUES(?, ?, ?)""", (dat[0], q.id, str(q.seq), ) )
-         else:
-            cur2.execute("""UPDATE csr SET sequence = ?  WHERE seqID = ? AND fileID = ?;""", (str(q.seq), q.id, dat[0]) )
+          if q.id == dat[2]:
+              cur2.execute("""INSERT INTO csr(fileID, seqID, sequence) VALUES(?, ?, ?)""", (dat[0], q.id, str(q.seq), ) )
+          else:
+              cur2.execute("""UPDATE csr SET sequence = ?  WHERE seqID = ? AND fileID = ?;""", (str(q.seq), q.id, dat[0]) )
    con.commit()
 
 
