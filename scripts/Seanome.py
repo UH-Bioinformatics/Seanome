@@ -52,6 +52,7 @@ def main(argv):
     parser.add_argument('-t', '--threads', type=int, default = 2, help = "Number of threads (default: 2)")
     parser.add_argument("-q", "--quiet", action = "store_true", required = False, help = "Silence subprocess output")
     parser.add_argument('-d', '--database', required=True, help="Seanome sqlite database")
+    parser.add_argument('-u', '--debug', action = "store_true", help="Set Seanome to use a single thread, instead of the thread pool")
     subparsers = parser.add_subparsers(dest='action', help='Available commands')
 
     # seed_csr
