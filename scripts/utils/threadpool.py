@@ -12,7 +12,7 @@ class ProducerConsumer(object):
         if threads > 1:
             self.threads= threads - 1
         else:
-            self.threads = 1      
+            self.threads = 1
         self.producer = producer
         self.consumer = consumer
 
