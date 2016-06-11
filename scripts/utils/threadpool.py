@@ -3,12 +3,16 @@ import sys
 
 class ProducerConsumer(object):
     def __init__(self, args, threads, producer, consumer):
+        try:# in case we forget to set a debug flag as an option. set it up here for use..
+          self.debug = args.debug
+        except:
+          print >> sys.stderr, "args is missing debug flag.  Setting it to False for ProducerConsumer"
+          self.debug = False
         # we subtract 1 thread, to account for the consumer thread. aka the main thread
-        self.debug = args.debug
         if threads > 1:
             self.threads= threads - 1
         else:
-            self.threads = 1
+            self.threads = 1      
         self.producer = producer
         self.consumer = consumer
 
